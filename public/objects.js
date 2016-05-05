@@ -47,8 +47,7 @@ Quintus.Objects = function(Q){
     Q.Sprite.extend("Pickup",{
         init:function(p){
            this._super(p,{
-                type:Q.SPRITE_PICKUP,
-                level:1
+                type:Q.SPRITE_PICKUP
            });
            this.p.itemId=this.p.sheet;
            Q.setXY(this);
@@ -56,6 +55,7 @@ Quintus.Objects = function(Q){
            Q.setJSONData(Q.assets['/data/json/pickups.json'][this.p.sheet],this);
            //Set the item stats
            Q.setJSONData(Q.assets['/data/json/items.json'][this.p.itemId],this);
+           
            Q.setCenter(this);
            this.add("2d");
            this.p.z = this.p.y||2;
@@ -144,7 +144,7 @@ Quintus.Objects = function(Q){
                         break;
                 }
             } else if(this.p.watered<=0&&player.checkEquipment("watering_can",1)){
-                player.waterPlant(this.p.loc,Q.wateredSoilNum);
+                player.waterSoil(this.p.loc,"crops",Q.wateredSoilNum);
                 this.p.watered = Q.state.get("player").equipment.level*200;
             }
         }

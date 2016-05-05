@@ -59,6 +59,7 @@
         "kind":"seeds",
         "desc":"Plant these to produce grass."
     },
+    
     "stick":{
         "name":"Stick",
         "weight":1,
@@ -83,6 +84,7 @@
         "kind":"materials",
         "desc":"A huge branch that has been chopped with an axe."
     },
+    
     "pebble":{
         "name":"Pebble",
         "weight":1,

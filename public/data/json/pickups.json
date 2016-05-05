@@ -23,7 +23,7 @@
         "w":32,
         "h":32
     },
-    "refined_stone":{
+    "stone":{
         "tilew":32,
         "tileh":32,
         "sx":96,

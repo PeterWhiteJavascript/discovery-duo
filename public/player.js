@@ -59,15 +59,13 @@ Quintus.Player=function(Q){
                 this.changeEnergy(this.getEnMod(-1));
             },
             chopWood:function(wood){
-                var loc = [wood.p.loc[0]+((wood.p.w/Q.tileH/2)/2),wood.p.loc[1]+((wood.p.h/Q.tileH/2)/2)];
-                this.stage.insert(new Q.Pickup({loc:loc,sheet:"lumber"}));
+                this.stage.insert(new Q.Pickup({loc:wood.p.loc,sheet:"lumber"}));
                 wood.destroy();
                 Q.removeSolidInteractable(wood.p.loc);
                 this.changeEnergy(this.getEnMod(-1));
             },
             breakRock:function(rock){
-                var loc = [rock.p.loc[0]+((rock.p.w/Q.tileH/2)/2),rock.p.loc[1]+((rock.p.h/Q.tileH/2)/2)];
-                this.stage.insert(new Q.Pickup({loc:loc,sheet:"refined_stone"}));
+                this.stage.insert(new Q.Pickup({loc:rock.p.loc,sheet:"stone"}));
                 rock.destroy();
                 Q.removeSolidInteractable(rock.p.loc);
                 this.changeEnergy(this.getEnMod(-1));
@@ -306,6 +304,7 @@ Quintus.Player=function(Q){
             //If there's room in the bag
             if(itemWeight+weight<=max){
                 bag.weight+=itemWeight;
+                this.trigger("change_bag_weight");
                 //The items that are currently in the bag
                 var items = bag.items;
                 var curItem = items.filter(function(itm){
@@ -484,9 +483,11 @@ Quintus.Player=function(Q){
             })[0];
             it.amount-=1;
             bag.weight-=it.weight;
+            this.trigger("change_bag_weight");
             if(it.amount<=0){
                 items.splice(items.indexOf(it),1);
             }
+            this.trigger("use_item",item);
             return it;
         }
     });

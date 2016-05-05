@@ -60,7 +60,6 @@ Quintus.QFunctions=function(Q){
                 });
                 //Stage the TMX tilemap
                 Q.stageScene(sceneMap,1,{sort:true});
-                console.log(Q.state.p)
             });  
         });
     };
@@ -97,7 +96,7 @@ Quintus.QFunctions=function(Q){
             if(time[0]>=24){
                 time[0]=0;
                 var date = Q.state.get("date");
-                Q.state.set("date",{year:date.year,month:date.month,day:date.day++});
+                Q.state.set("date",{year:date.year,month:date.month,day:date.day+1});
                 //TO DO: change year/month;
             }
             Q.state.set("time",time);
@@ -153,10 +152,13 @@ Quintus.QFunctions=function(Q){
     };
     
     Q.setJSONData=function(data,obj){
+        //Handle if we pass an Q.Sprite object in
+        if(obj.p){obj=obj.p;};
         var keys = Object.keys(data);
         for(var i=0;i<keys.length;i++){
-            obj.p[keys[i]]=data[keys[i]];
+            obj[keys[i]]=data[keys[i]];
         }
+        return obj;
     };
     Q.setXY=function(obj){
         obj.p.x = obj.p.loc[0]*Q.tileH+obj.p.w/2;
@@ -260,9 +262,10 @@ Quintus.QFunctions=function(Q){
         props.forEach(function(prop){
             var p = Q.state.get("player")[prop];
             if(p&&p.itemId){
-                var data = Q.getItemData(p.itemId);
+                var data = Q.setJSONData(Q.getItemData(p.itemId),{});
                 data.itemId = p.itemId;
                 data.level = p.level;
+                data.amount = p.amount;
                 Q.state.set(prop,data);
             }
         });
@@ -281,7 +284,7 @@ Quintus.QFunctions=function(Q){
         var bag = Q.state.get("player").bag;
         var items = [];
         bag.items.forEach(function(item){
-            var data = Q.getItemData(item.itemId);
+            var data = Q.setJSONData(Q.getItemData(item.itemId),{});
             data.itemId = item.itemId;
             data.amount = item.amount;
             data.level = item.level;

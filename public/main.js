@@ -52,7 +52,7 @@ require(['socket.io/socket.io.js']);
 
 var socket = io.connect();
 
-var uniqueId = Math.floor(Math.random()*2);
+var uniqueId = 0;//Math.floor(Math.random()*2);
 function setUp(){
     
     /**CONNECTION**/  

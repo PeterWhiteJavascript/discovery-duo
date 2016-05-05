@@ -90,7 +90,8 @@ Quintus.UI_Objects = function(Q){
                 red.getIcon();
                 
                 var bagBase = this.insert(new Q.UIBagEncyBase({x:this.setPos(0),y:this.setPos(7),w:this.p.w,menuProp:"bag"}));
-                var bag = this.insert(new Q.UIBagEncy({x:this.setPos(.5),y:this.setPos(7),sheet:"ui_bag_icon"}));
+                var bag = this.insert(new Q.UIBagEncy({x:this.setPos(0.25),y:this.setPos(7),sheet:"ui_bag_icon"}));
+                var bagWeight = this.insert(new Q.UIBagWeight({x:this.setPos(1.5),y:this.setPos(7.5)}));
                 
                 var encyBase = this.insert(new Q.UIBagEncyBase({x:this.setPos(0),y:this.setPos(8),w:this.p.w,menuProp:"encyclopedia"}));
                 var ency = this.insert(new Q.UIBagEncy({x:this.setPos(.5),y:this.setPos(8),sheet:"ui_ency_icon"}));
@@ -217,38 +218,69 @@ Quintus.UI_Objects = function(Q){
                 this.touch();
             }
         },
+        //This is for the small icons
         showIcon:function(){
             var items = Q.sortItems(this.p.menuProp);
             this.stage.insert(new Q.UISortedCircle({sheet:this.p.sheet,x:-Q.tileH,y:0,menuProp:this.p.menuProp}),this);
             var x = -Q.tileH;
             var y = Q.tileH;
             for(var i=0;i<items.length;i++){
-                this.stage.insert(new Q.UISortedCircle({sheet:this.p.sheet,x:x,y:y,menuProp:this.p.menuProp,item:items[i]}),this);
+                var circle = this.stage.insert(new Q.UISortedCircle({sheet:this.p.sheet,x:x,y:y,menuProp:this.p.menuProp,item:items[i]}),this);
                 if(items[i].kind==="seeds"){
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_seeds",x:x-1+Q.tileH/4,y:y-1+Q.tileH/4,scale:0.5}),this);
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+items[i].crop,x:x-1+Q.tileH/4,y:y-1+Q.tileH/4,scale:0.5}),this);
+                    this.stage.insert(new Q.UIIcon({sheet:"icon_seeds",x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
+                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+items[i].crop,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
+                    this.stage.insert(new Q.UIItemText({labelString:"x",num:items[i].amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:items[i]}),circle);
                 } else if(items[i].kind==="materials"){
-                    this.stage.insert(new Q.UIIcon({sheet:items[i].itemId,x:x-1+Q.tileH/4,y:y-1+Q.tileH/4,scale:0.5}),this);
+                    this.stage.insert(new Q.UIIcon({sheet:items[i].itemId,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
+                    this.stage.insert(new Q.UIItemText({labelString:"x",num:items[i].amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:items[i]}),circle);
                 } else {
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+items[i].itemId,x:x-1+Q.tileH/4,y:y-1+Q.tileH/4,scale:0.5}),this);
+                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+items[i].itemId,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
+                    this.stage.insert(new Q.UIItemText({labelString:"x",num:items[i].amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:items[i]}),circle);
                 }
+                this.stage.insert(new Q.UIItemText({labelString:"lv. ",num:items[i].level,x:Q.tileH-2,y:Q.tileH/4}),circle);
                 if(y===0){y=Q.tileH;}else{x-=Q.tileH;y=0;};
             }
             this.p.open=true;
         },
+        //This is for the big icons
         getIcon:function(){
             var prop = Q.state.get("player")[this.p.menuProp];
             if(prop&&prop.itemId){
                 var data = Q.getItemData(prop.itemId);
+                if(prop.amount<=0){return;};
                 if(data.kind==="seeds"){
                     this.stage.insert(new Q.UIIcon({sheet:"icon_seeds",x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
                     this.stage.insert(new Q.UIIcon({sheet:"icon_"+data.crop,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
+                    this.stage.insert(new Q.UIItemText({labelString:"x",num:prop.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:prop}),this);
                 } else if(data.kind==="materials"){
                     this.stage.insert(new Q.UIIcon({sheet:prop.itemId,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
+                    this.stage.insert(new Q.UIItemText({labelString:"x",num:prop.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:prop}),this);
                 } else {
                     this.stage.insert(new Q.UIIcon({sheet:"icon_"+prop.itemId,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
+                    this.stage.insert(new Q.UIItemText({labelString:"x",num:prop.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:prop}),this);
                 }
+                this.stage.insert(new Q.UIItemText({labelString:"lv. ",num:prop.level,x:Q.tileH-2,y:Q.tileH/4}),this);
             }
+        }
+    });
+    Q.UI.Text.extend("UIItemText",{
+        init:function(p){
+            this._super(p,{
+                 size:6,
+                 type:Q.SPRITE_NONE
+            });
+            this.setLabel();
+            if(this.p.labelString==="x"){
+                Q.state.get("playerObj").on("use_item",this,function(item){
+                    if(this.p.item.itemId===item.itemId&&this.p.item.level===item.level){
+                        this.p.num = item.amount;
+                        this.setLabel();
+                    }
+                });
+            }
+        },
+        setLabel:function(){
+            this.p.label = this.p.labelString+this.p.num;
         }
     });
     Q.Sprite.extend("UISortedCircle",{
@@ -280,7 +312,7 @@ Quintus.UI_Objects = function(Q){
                 w:Q.tileH,
                 h:Q.tileH,
                 cx:0,cy:0,
-                type:Q.SPRITE_UI
+                type:Q.SPRITE_NONE
            });
            this.p.points = [[0,0],[this.p.w,0],[this.p.w,this.p.h],[0,this.p.h]];
        }
@@ -336,6 +368,20 @@ Quintus.UI_Objects = function(Q){
             }
         }
     });
+    
+    Q.UI.Text.extend("UIBagWeight",{
+        init:function(p){
+            this._super(p,{
+                 size:16,
+                 type:Q.SPRITE_NONE
+            });
+            this.setLabel();
+            Q.state.get("playerObj").on("change_bag_weight",this,"setLabel");
+        },
+        setLabel:function(){
+            this.p.label = Q.state.get("player").bag.weight+"/"+Q.state.get("player").bag.maxWeight;
+        }
+    });
     Q.Sprite.extend("UIDateTimeBase",{
         init:function(p){
             this._super(p,{
@@ -353,6 +399,7 @@ Quintus.UI_Objects = function(Q){
             });
             this.add("HUDElement");
             this.setLabel();
+            Q.state.on("change.date",this,"setLabel");
         },
         setLabel:function(){
             var date = Q.getDate(Q.state.get("date"));

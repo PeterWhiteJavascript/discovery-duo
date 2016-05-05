@@ -10,26 +10,31 @@
                     {"itemId":"stick","level":2,"amount":1},
                     {"itemId":"hoe","level":1,"amount":1},
                     {"itemId":"axe","level":1,"amount":1},
+                    {"itemId":"axe","level":4,"amount":1},
                     {"itemId":"watering_can","level":1,"amount":1},
-                    {"itemId":"carrot_seeds","level":1,"amount":3},
+                    {"itemId":"carrot_seeds","level":1,"amount":12},
                     {"itemId":"hammer","level":1,"amount":1},
-                    {"itemId":"beet_seeds","level":1,"amount":3},
-                    {"itemId":"carrot","level":1,"amount":3}
+                    {"itemId":"hammer","level":5,"amount":1},
+                    {"itemId":"beet_seeds","level":1,"amount":13},
+                    {"itemId":"carrot","level":2,"amount":3}
                 ],
-                "maxWeight":20
+                "maxWeight":50
             },
 
             "equipment":{
                 "itemId":"hoe",
-                "level":1
+                "level":1,
+                "amount":1
             },
             "seeds":{
                 "itemId":"carrot_seeds",
-                "level":1
+                "level":1,
+                "amount":12
             },
             "held":{
                 "itemId":"carrot",
-                "level":1
+                "level":2,
+                "amount":3
             },
             "steps":100,
             "options":{
@@ -45,15 +50,33 @@
             "bag":{
                 "items":[
                     {"itemId":"stick","level":2,"amount":1},
+                    {"itemId":"hoe","level":1,"amount":1},
+                    {"itemId":"axe","level":1,"amount":1},
+                    {"itemId":"axe","level":4,"amount":1},
+                    {"itemId":"watering_can","level":1,"amount":1},
+                    {"itemId":"carrot_seeds","level":1,"amount":3},
+                    {"itemId":"hammer","level":1,"amount":1},
+                    {"itemId":"hammer","level":5,"amount":1},
+                    {"itemId":"beet_seeds","level":1,"amount":3},
                     {"itemId":"carrot","level":1,"amount":3}
                 ],
                 "maxWeight":20
             },
-            "equipment":{},
-            "seeds":{},
+
+            "equipment":{
+                "itemId":"hoe",
+                "level":1,
+                "amount":1
+            },
+            "seeds":{
+                "itemId":"carrot_seeds",
+                "level":1,
+                "amount":3
+            },
             "held":{
                 "itemId":"carrot",
-                "level":1
+                "level":1,
+                "amount":3
             },
             "steps":100,
             "options":{
@@ -64,7 +87,7 @@
     ],
     "levelData":{
         "main_farm":{
-            "music":"farm1.mp3",
+            "music":"farm1",
             "buildings":[
                 {"loc":[1,9],"level":1,"sheet":"house1"},
                 {"loc":[22,9],"level":1,"sheet":"house2"},
@@ -75,7 +98,12 @@
             
             "pickups":[
                 {"loc":[2,6],"level":1,"sheet":"stick"},
-                {"loc":[2,5],"level":1,"sheet":"pebble"}
+                {"loc":[2,5],"level":1,"sheet":"pebble"},
+                {"loc":[5,30],"level":1,"sheet":"stick"},
+                {"loc":[5,31.5],"level":2,"sheet":"stick"},
+                {"loc":[6,30.7],"level":1,"sheet":"stick"},
+                {"loc":[7,29],"level":1,"sheet":"stick"},
+                {"loc":[7,30.4],"level":1,"sheet":"stick"}
             ],
             "tilledSoil":[
                 {"loc":[4,5],"days":3,"watered":0},
@@ -86,10 +114,24 @@
                 {"loc":[3,7],"phase":0,"level":1,"crop":"carrot","water":400,"sun":1000,"days":5,"watered":0},
                 {"loc":[4,7],"phase":1,"level":1,"crop":"carrot","water":400,"sun":1000,"days":5,"watered":0},
                 {"loc":[4,8],"phase":2,"level":1,"crop":"carrot","water":400,"sun":1000,"days":5,"watered":200},
-                {"loc":[1,1],"phase":3,"level":1,"crop":"carrot","water":400,"sun":1000,"days":5,"watered":200}
+                {"loc":[1,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[2,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[3,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[4,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[5,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[6,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[7,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[8,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200},
+                {"loc":[9,1],"phase":3,"level":1,"crop":"carrot","water":0,"sun":0,"days":5,"watered":200}
             ],
             "solidInteractables":[
                 {"loc":[8,10],"sheet":"tree1"},
+                {"loc":[4,27],"sheet":"tree1"},
+                
+                {"loc":[14,20],"sheet":"rock4"},
+                
+                {"loc":[22,16],"sheet":"rock1"},
+                
                 {"loc":[10,10],"sheet":"rock1"},
                 {"loc":[15,10],"sheet":"rock2"},
                 {"loc":[13,10],"sheet":"rock3"},
