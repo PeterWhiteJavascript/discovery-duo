@@ -1,0 +1,61 @@
+{
+    "tree1":{
+        "tilew":64,
+        "tileh":64,
+        "sx":0,
+        "sy":0,
+        "w":64,
+        "h":64,
+        
+        "itemId":"tree",
+        "points":[[-32,0],[32,0],[32,32],[-32,32]],
+        "level":1
+    },
+    "rock1":{
+        "tilew":96,
+        "tileh":64,
+        "sx":0,
+        "sy":64,
+        "w":96,
+        "h":64,
+        
+        "itemId":"rock",
+        "points":[[-48,0],[48,0],[48,32],[-48,32]],
+        "level":3
+    },
+    "rock2":{
+        "tilew":64,
+        "tileh":32,
+        "sx":96,
+        "sy":64,
+        "w":64,
+        "h":32,
+        
+        "itemId":"rock",
+        "level":2
+    },
+    "rock3":{
+        "tilew":64,
+        "tileh":64,
+        "sx":160,
+        "sy":64,
+        "w":64,
+        "h":64,
+        
+        "itemId":"rock",
+        "points":[[-32,0],[32,0],[32,32],[-32,32]],
+        "level":2
+    },
+    "rock4":{
+        "tilew":32,
+        "tileh":32,
+        "sx":96,
+        "sy":96,
+        "w":32,
+        "h":32,
+        
+        "itemId":"rock",
+        "level":1
+    }
+    
+}

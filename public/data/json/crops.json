@@ -1,0 +1,24 @@
+{
+    "carrot":{
+        "phases":[
+            {"days":5,"water":2,"sun":2},
+            {"days":2,"water":1,"sun":1},
+            {"days":2,"water":1,"sun":1}
+        ],
+        "reharvestable":0
+    },
+    "beet":{
+        "phases":[
+            {"days":2,"water":2,"sun":2},
+            {"days":2,"water":1,"sun":1}
+        ],
+        "reharvestable":0
+    },
+    "lettuce":{
+        "phases":[
+            {"days":2,"water":2,"sun":2},
+            {"days":2,"water":1,"sun":1}
+        ],
+        "reharvestable":1
+    }
+}

@@ -1,0 +1,146 @@
+{
+    "carrot":{
+        "name":"Carrot",
+        "weight":1,
+        "kind":"crops",
+        "edible":[5,1],
+        "desc":"An orange root vegetable."
+    },
+    "potato":{
+        "name":"Potato",
+        "weight":1,
+        "kind":"crops",
+        "desc":"A staple vegetable high in starch."
+    },
+    "beet":{
+        "name":"Beet",
+        "weight":1,
+        "kind":"crops",
+        "desc":"A purple vegetable."
+    },
+    "lettuce":{
+        "name":"Lettuce",
+        "weight":1,
+        "kind":"crops",
+        "desc":"A green leafy vegetable."
+    },
+    "grass":{
+        "name":"Grass",
+        "weight":1,
+        "kind":"crops",
+        "desc":"Feed for animals."
+    },
+    
+    "carrot_seeds":{
+        "name":"Carrot Seeds",
+        "crop":"carrot",
+        "weight":1,
+        "kind":"seeds",
+        "desc":"Plant these to produce carrots."
+    },
+    "potato_seeds":{
+        "name":"Potato Seeds",
+        "crop":"potato",
+        "weight":1,
+        "kind":"seeds",
+        "desc":"Plant these to produce potatoes."
+    },
+    "beet_seeds":{
+        "name":"Beet Seeds",
+        "crop":"beet",
+        "weight":1,
+        "kind":"seeds",
+        "desc":"Plant these to produce beets."
+    },
+    "grass_seeds":{
+        "name":"Grass Seeds",
+        "crop":"grass",
+        "weight":1,
+        "kind":"seeds",
+        "desc":"Plant these to produce grass."
+    },
+    "stick":{
+        "name":"Stick",
+        "weight":1,
+        "kind":"materials",
+        "desc":"A small stick found lying around." 
+    },
+    "lumber":{
+        "name":"Lumber",
+        "weight":1,
+        "kind":"materials",
+        "desc":"A medium-sized branch that has been chopped with an axe."
+    },
+    "big_lumber":{
+        "name":"Big Lumber",
+        "weight":2,
+        "kind":"materials",
+        "desc":"A big branch that has been chopped with an axe."
+    },
+    "giant_lumber":{
+        "name":"Giant Lumber",
+        "weight":4,
+        "kind":"materials",
+        "desc":"A huge branch that has been chopped with an axe."
+    },
+    "pebble":{
+        "name":"Pebble",
+        "weight":1,
+        "kind":"materials",
+        "desc":"A small rock found lying around."
+    },
+    "stone":{
+        "name":"Stone",
+        "weight":2,
+        "kind":"materials",
+        "desc":"A medium-sized rock that has been smashed with a hammer."
+    },
+    "big_stone":{
+        "name":"Big Stone",
+        "weight":5,
+        "kind":"materials",
+        "desc":"A big rock that has been smashed with a hammer."
+    },
+    "giant_stone":{
+        "name":"Giant Stone",
+        "weight":9,
+        "kind":"materials",
+        "desc":"A huge rock that has been smashed with a hammer."
+    },
+    
+    "hoe":{
+        "name":"Hoe",
+        "weight":4,
+        "kind":"equipment"
+    },
+    "watering_can":{
+        "name":"Watering Can",
+        "weight":1,
+        "kind":"equipment"
+    },
+    "axe":{
+        "name":"Axe",
+        "weight":4,
+        "kind":"equipment"
+    },
+    "hammer":{
+        "name":"Hammer",
+        "weight":4,
+        "kind":"equipment"
+    },
+    "fishing_rod":{
+        "name":"Fishing Rod",
+        "weight":2,
+        "kind":"equipment"
+    },
+    "sickle":{
+        "name":"Sickle",
+        "weight":2,
+        "kind":"equipment"
+    },
+    "rake":{
+        "name":"Rake",
+        "weight":2,
+        "kind":"equipment"
+    }
+}

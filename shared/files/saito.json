@@ -1,0 +1,21 @@
+{
+    "name": "Saito",
+    "levelData": {
+        "main_farm":{
+            "buildings":[
+                {
+                    "name":"house",
+                    "level":1,
+                    "loc":[1,1]
+                }
+            ],
+            "objects":[
+                {
+                    "name":"stick",
+                    "level":1,
+                    "loc":[5,4]
+                }
+            ]
+        }
+    }
+}

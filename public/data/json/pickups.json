@@ -1,0 +1,34 @@
+{
+    "stick":{
+        "tilew":32,
+        "tileh":32,
+        "sx":0,
+        "sy":0,
+        "w":32,
+        "h":32
+    },
+    "pebble":{
+        "tilew":32,
+        "tileh":32,
+        "sx":32,
+        "sy":0,
+        "w":32,
+        "h":32
+    },
+    "lumber":{
+        "tilew":32,
+        "tileh":32,
+        "sx":64,
+        "sy":0,
+        "w":32,
+        "h":32
+    },
+    "refined_stone":{
+        "tilew":32,
+        "tileh":32,
+        "sx":96,
+        "sy":0,
+        "w":32,
+        "h":32
+    }
+}
