@@ -7,9 +7,13 @@
         "w":64,
         "h":64,
         
-        "itemId":"tree",
+        "item":{
+            "groupId":4,
+            "itemId":1,
+            "level":1
+        },
         "points":[[-32,0],[32,0],[32,32],[-32,32]],
-        "level":1
+        "equipment":"Axe"
     },
     "rock1":{
         "tilew":96,
@@ -19,9 +23,14 @@
         "w":96,
         "h":64,
         
-        "itemId":"rock",
+        "item":{
+            "groupId":4,
+            "itemId":6,
+            "level":3
+        },
         "points":[[-48,0],[48,0],[48,32],[-48,32]],
-        "level":3
+        "equipment":"Hammer"
+        
     },
     "rock2":{
         "tilew":64,
@@ -30,9 +39,12 @@
         "sy":64,
         "w":64,
         "h":32,
-        
-        "itemId":"rock",
-        "level":2
+        "item":{
+            "groupId":4,
+            "itemId":6,
+            "level":1
+        },
+        "equipment":"Hammer"
     },
     "rock3":{
         "tilew":64,
@@ -42,9 +54,13 @@
         "w":64,
         "h":64,
         
-        "itemId":"rock",
+        "item":{
+            "groupId":4,
+            "itemId":6,
+            "level":2
+        },
         "points":[[-32,0],[32,0],[32,32],[-32,32]],
-        "level":2
+        "equipment":"Hammer"
     },
     "rock4":{
         "tilew":32,
@@ -53,9 +69,12 @@
         "sy":96,
         "w":32,
         "h":32,
-        
-        "itemId":"rock",
-        "level":1
+        "item":{
+            "groupId":4,
+            "itemId":6,
+            "level":1
+        },
+        "equipment":"Hammer"
     }
     
 }

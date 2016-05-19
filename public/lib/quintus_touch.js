@@ -134,7 +134,11 @@ Quintus.Touch = function(Q) {
               stage: stage
             };
             this.touchedObjects[obj.p.id] = true;
-            obj.trigger('touch', this.activeTouches[touchIdentifier]);
+            if(obj.p.type===Q.SPRITE_UI){
+                obj.trigger("touch");
+            } else {
+                Q.sendData("touch",{x:pos.p.px,y:pos.p.py,loc:obj.p.loc});
+            }
             break;
           }
 
@@ -143,7 +147,7 @@ Quintus.Touch = function(Q) {
       }
       //If there was no object touched
       if(!touchedObj){
-        Q.state.get("playerObj").processTouch(pos.p);
+          Q.sendData("touch",{x:pos.p.px,y:pos.p.py});
       }
       //e.preventDefault();
     },

@@ -1,108 +1,22 @@
+var quintusFunctions = function(Quintus) {
+"use strict";
+//This is shared on server and client
 Quintus.QFunctions=function(Q){
-    Q.startScene=function(data){
-        Q.state.set("currentLevel",data);
-        console.log(data)
-        var sceneMap = data.map;
-        var music = data.music;
-        //Load the tmx map
-        Q.loadTMX(sceneMap+".tmx",function(){
-            //Load the music
-            Q.playMusic(music+".mp3",function(){ 
-                //Add the objects to the map
-                Q.makeScene(sceneMap,function(stage){
-                    var level = Q.state.get("currentLevel");
-                    level.buildings.forEach(function(building){
-                        stage.insert(new Q.Building({loc:building.loc,sheet:building.sheet}));
-                    });
-                    level.pickups.forEach(function(pickup){
-                        stage.insert(new Q.Pickup({loc:pickup.loc,sheet:pickup.sheet,level:pickup.level}));
-                    });
-                    level.tilledSoil.forEach(function(soil){
-                        if(soil.watered>0){
-                            Q.ground.setTile(soil.loc[0],soil.loc[1],9);
-                        } else {
-                            Q.ground.setTile(soil.loc[0],soil.loc[1],8);
-                        }
-                    });
-                    level.crops.forEach(function(crop){
-                        //It's a crop that is not a seed
-                        if(crop.phase>=1){
-                            if(crop.watered>0){
-                                Q.ground.setTile(crop.loc[0],crop.loc[1],Q.wateredSoilNum);
-                            } else {
-                                Q.ground.setTile(crop.loc[0],crop.loc[1],Q.soilNum);
-                            }
-                            stage.insert(new Q.Crop({loc:crop.loc,sheet:crop.crop,phase:crop.phase,watered:crop.watered,level:crop.level}));
-                        } 
-                        //If it's a seed
-                        else if(crop.phase===0){
-                            if(crop.watered>0){
-                                Q.ground.setTile(crop.loc[0],crop.loc[1],Q.wateredSeedNum);
-                            } else {
-                                Q.ground.setTile(crop.loc[0],crop.loc[1],Q.seedNum);
-                            }
-                        }
-                    });
-                    level.solidInteractables.forEach(function(int){
-                        stage.insert(new Q.SolidInteractable({loc:int.loc,sheet:int.sheet}));
-                    });
-                    
-                    var player = stage.insert(new Q.Player({loc:[4,14],energy:Q.state.get("player").energy,hunger:Q.state.get("player").hunger}));
-                    Q.state.set("playerObj",player);
-                    /*if(!Q.touchDevice){
-                        var mouseBlock = stage.insert(new Q.MouseBlock());
-                        Q.state.set("mouseBlock",mouseBlock);
-                    }*/
-                    stage.add("viewport");
-                    Q.addViewport(stage);
-                    Q.stageScene("hud",2);
-                    
-                });
-                //Stage the TMX tilemap
-                Q.stageScene(sceneMap,1,{sort:true});
-            });  
-        });
-    };
-    Q.makeScene = function(sceneName,callback){
-        Q.scene(sceneName,function(stage){
-            Q.stageTMX(sceneName+".tmx",stage);
-            Q.TL = stage.lists.TileLayer.filter(function(tl){
-                return tl.p.collision==="true";
-            })[0];
-            Q.ground = stage.lists.TileLayer.filter(function(tl){
-                return tl.p.ground==="true";
-            })[0];
-            Q.state.set("mapWidth",Q.TL.p.cols);
-            Q.state.set("mapHeight",Q.TL.p.rows);
-            callback(stage);
-        },{sort:true});
-    };
-    //The upper heads up display. The contains the UICircles, side menu, time/date, health bar
-    Q.scene("hud",function(stage){
-        //This inserts the HUD and all icons
-        var cont = stage.insert(new Q.HUD());
-        //Have to call this seperately since cont.stage doesn't exist in init.
-        cont.setUpHUD();
-        
-        var time = Q.state.get("time");
-        //Change this to a more accurate timer later
-        setInterval(function(){
-            time[1]++;
-            if(time[1]>=60){
-                time[0]++;
-                time[1]=0;
-                Q.state.get("playerObj").changeHunger(-4);
-            };
-            if(time[0]>=24){
-                time[0]=0;
-                var date = Q.state.get("date");
-                Q.state.set("date",{year:date.year,month:date.month,day:date.day+1});
-                //TO DO: change year/month;
-            }
-            Q.state.set("time",time);
-            Q.state.trigger("timeTick");
-        },1000);
-    });
+    
+    Q.SPRITE_NONE = 0;
+    Q.SPRITE_DEFAULT = 1;
+    Q.SPRITE_PICKUP = 2;
+    Q.SPRITE_GROUND = 4;
+    Q.SPRITE_SOLID = 8;
+    Q.SPRITE_PLAYER = 16;
+    Q.SPRITE_INTERACTABLE = 32;
+    Q.SPRITE_UI=64;
+    Q.gravityY=0;
+    Q.tileH=32;
+
+    Q.soilNum = 8;
+    Q.wateredSoilNum = 9;
+    Q.seedNum = 23;
     
     //Get the path that this object should walk along to get to a location
     Q.getPath=function(obj,loc,toLoc,near){
@@ -122,8 +36,16 @@ Quintus.QFunctions=function(Q){
     };
     //Accepts loc coords 
     Q.getWalkable=function(x,y){
+        var tl = Q.TL;
+        var stage=Q.stage(1);
+        if(typeof Quintus === 'undefined'){
+            tl = stage.lists.ServerTileLayer.filter(function(tl){
+                return tl.p.data.properties.collision==="true";
+            })[0];
+            
+        }
         //Check if there is solid ground, or a solid object on the ground
-        if(Q.TL.p.tiles[y][x]||Q.stage(1).locate(x*Q.tileH+Q.tileH/2,y*Q.tileH+Q.tileH/2,Q.SPRITE_SOLID)){
+        if(tl.p.tiles[y][x]||Q.stage(1).locate(x*Q.tileH+Q.tileH/2,y*Q.tileH+Q.tileH/2,Q.SPRITE_SOLID)){
             return true;
         }
         return false;
@@ -146,11 +68,23 @@ Quintus.QFunctions=function(Q){
     Q.changedLevel=function(type,num,data){
         var level = Q.state.get("currentLevel");
     };
-    
+    //This takes into account offcenter locations
     Q.getLoc=function(obj){
         return [Math.floor((obj.p.x-Math.floor((obj.p.x/Q.tileH-Math.floor(obj.p.x/Q.tileH))*Q.tileH))/Q.tileH),Math.floor((obj.p.y-Math.floor((obj.p.y/Q.tileH-Math.floor(obj.p.y/Q.tileH))*Q.tileH))/Q.tileH)];
     };
-    
+    Q.getColLocs=function(w,h,loc,stage){
+        if(w===Q.tileH&&h===Q.tileH){return [loc];};
+        var startX = loc[0];
+        var startY = loc[1];
+        var locs = [];
+        //This does get the 0,0 loc as well
+        for(var i=0;i<h/Q.tileH;i++){
+            for(var j=0;j<w/Q.tileH;j++){
+                locs.push([startX+j,startY+i]);
+            }
+        }
+        return locs;
+    };
     Q.setJSONData=function(data,obj){
         //Handle if we pass an Q.Sprite object in
         if(obj.p){obj=obj.p;};
@@ -163,6 +97,7 @@ Quintus.QFunctions=function(Q){
     Q.setXY=function(obj){
         obj.p.x = obj.p.loc[0]*Q.tileH+obj.p.w/2;
         obj.p.y = obj.p.loc[1]*Q.tileH+obj.p.h/2;
+        obj.p.z = obj.p.y;
     };
     Q.setCenter=function(obj){
         obj.p.cx = obj.p.w/2;
@@ -175,23 +110,36 @@ Quintus.QFunctions=function(Q){
         return [Math.floor((touch.x-remX)/Q.tileH),Math.floor((touch.y-remY)/Q.tileH)];
     };
     //Checks if the ground is a type that can be interacted with
-    Q.checkGround=function(ground){
-        switch(ground){
+    Q.checkGround=function(ground,collision){
+        var gr = ground?ground.id||ground:0;
+        var co = collision?collision.id||collision:0;
+        var data = {};
+        switch(gr){
             case 2:
-                return {type:"soil"};
+                data.type = "soil";
+                break;
             case 4:
-                return {type:"water"};
+                data.type = "water";
+                break;
             case 5:
-                return {type:"rock"};
+                data.type = "rock";
+                break;
             case 8:
-                return {type:"soil",tilled:true};
+                data.type = "soil";
+                data.tilled = true;
+                break;
             case 9:
-                return {type:"soil",tilled:true,watered:true};
-            case 22:
-                return {type:"soil",tilled:true,seeded:true};
-            case 23:
-                return {type:"soil",tilled:true,watered:true,seeded:true};
+                data.type = "soil";
+                data.tilled = true;
+                data.watered = true;
+                break;
         }
+        switch(co){
+            case 23:
+                data.seeded = true;
+                break;
+        }
+        if(data.type){return data;};
         return false;
     };
     Q.addViewport=function(stage){
@@ -214,37 +162,18 @@ Quintus.QFunctions=function(Q){
         //TO DO: Make it so that the player has the walk a bit closer in a certain direction before the viewport starts following him.
         stage.follow(obj,{x:true,y:true},{minX: minX, maxX: maxX, minY: minY,maxY:maxY});
     };
-    Q.getItemData=function(id){
-        return Q.assets['/data/json/items.json'][id];
-    };
-    Q.addSoil=function(loc){
-        Q.state.get("currentLevel").tilledSoil.push({loc:loc,days:Q.state.get("player").equipment.level,water:0});
-    };
-    Q.removeSoil=function(loc){
-        var soils = Q.state.get("currentLevel").tilledSoil;
-        var soil = Q.getObject(loc,"tilledSoil");
-        soils.splice(soils.indexOf(soil),1);
-    };
-    //Adds the crop to the level data
-    Q.addCrop=function(seed,loc){
-        var crop = Q.assets['/data/json/items.json'][seed].crop;
-        var data = Q.assets['/data/json/crops.json'][crop];
-        var seedData = data['phases'][0];
-        Q.state.get("currentLevel").crops.push({loc:loc,phase:0,level:1,crop:seed,water:seedData.water,sun:seedData.sun,days:seedData.days,watered:0});
-    };
-    //Removes the crop from the level data
-    Q.removeCrop=function(loc){
-        var crops = Q.state.get("currentLevel").crops;
-        var crop = Q.getObject(loc,"crops");
-        crops.splice(crops.indexOf(crop),1);
+    Q.getItemsByGroupId = function(group){
+        var items = Q.state.get("Jitems");
+        var keys = Object.keys(items);
+        return items[keys[group]];
     };
     Q.removeSolidInteractable=function(loc){
         var inters = Q.state.get("currentLevel").solidInteractables;
         var inter = Q.getObject(loc,"solidInteractables");
         inters.splice(inters.indexOf(inter),1); 
     };
-    Q.getObject=function(loc,prop){
-        var objects = Q.state.get("currentLevel")[prop];
+    Q.getObject=function(level,loc,prop){
+        var objects = level[prop];
         var object = objects.filter(function(ob){
             return loc[0]===ob.loc[0]&&loc[1]===ob.loc[1];
         })[0];
@@ -257,50 +186,90 @@ Quintus.QFunctions=function(Q){
         var day = date['day'];
         return [month,day,year];
     };
-    Q.setEquipped=function(){
-        var props = ["equipment","seeds","held"];
-        props.forEach(function(prop){
-            var p = Q.state.get("player")[prop];
-            if(p&&p.itemId){
-                var data = Q.setJSONData(Q.getItemData(p.itemId),{});
-                data.itemId = p.itemId;
-                data.level = p.level;
-                data.amount = p.amount;
-                Q.state.set(prop,data);
+    Q.removeItem=function(props){
+        var loc = props.loc;
+        var stage = Q.stage(1);
+        var itm = stage.items.filter(function(item){
+            return item.p.loc&&item.p.loc[0]===loc[0]&&item.p.loc[1]===loc[1];
+        })[0];
+        stage.remove(itm);
+    };
+    Q.showDynamicText = function(props){
+        Q.stage(1).insert(new Q.DynamicText({text:props.text,color:"#ffffff",x:props.x,y:props.y}));
+    };
+    
+    Q.GameObject.extend("levelData",{});
+    //For some reason adding functions directly to the GameObject was not working, but adding as a component did.
+    Q.component("levelDataControls",{
+        extend:{
+            //Adds an item to the level data
+            addItem:function(map,group,item){
+                this.data[map][group].push(item);
+            },
+            //Removes an item from the level at a certain location
+            removeItem:function(map,group,loc){
+                this.data[map][group].splice(this.data[map][group].indexOf(this.getItem(map,group,loc)),1);
+            },
+            //Gets a certain item from the data by location
+            getItem:function(map,group,loc){
+                return this.data[map][group].filter(function(itm){
+                    return itm.loc[0]===loc[0]&&itm.loc[1]===loc[1];
+                })[0];
             }
-        });
-        
-    };
-    Q.calculateBagWeight = function(){
-        var bag = Q.state.get("player").bag;
-        var weight = 0;
-        bag.items.forEach(function(item){
-            weight+=item.weight;
-        });
-        bag.weight=weight;
-        console.log(bag);
-    };
-    Q.setUpItems=function(){
-        var bag = Q.state.get("player").bag;
-        var items = [];
-        bag.items.forEach(function(item){
-            var data = Q.setJSONData(Q.getItemData(item.itemId),{});
-            data.itemId = item.itemId;
-            data.amount = item.amount;
-            data.level = item.level;
-            items.push(data);
-        });
-        bag.items = items;
-        Q.setEquipped();
-        Q.calculateBagWeight();
-    };
-    Q.sortItems=function(kind){
-        var items = Q.state.get("player").bag.items;
-        if(kind==="held"){
-            return items;
-        } 
-        return items.filter(function(item){
-            return item.kind===kind;
-        });
-    };
+        }
+    });
+    Q.component("levelData",{
+        added:function(){
+            //Automatcially decompress the file when the levelData is added
+            this.on("decompress",this,"decompressFile");
+            this.trigger("decompress");
+        },
+        decompressFile:function(){
+            var data = this.entity.data;
+            var t = this;
+            //Get all of the level names
+            var keys = Object.keys(data);
+            var levelData = {};
+            //For each of the levels
+            keys.forEach(function(levelName){
+                //Set the level
+                levelData[levelName]=t.decompressLevel(data[levelName],levelName);
+            });
+            this.entity.data = levelData;
+        },
+        //Decompresses an entire level
+        decompressLevel:function(data,map){
+            return {
+                map:map,
+                music:data[0],
+                pickups:data[1].map(function(itm){return {groupId:itm[0],itemId:itm[1],loc:[itm[2],itm[3]],level:itm[4]};}),
+                tilledSoil:data[2].map(function(itm){return {loc:[itm[0],itm[1]],days:itm[2],watered:itm[3]};}),
+                crops:data[3].map(function(itm){return {itemId:itm[0],loc:[itm[1],itm[2]],phase:itm[3],water:itm[4],sun:itm[5],days:itm[6],watered:itm[7],level:itm[8]};}),
+                solidInteractables:data[4].map(function(itm){return {itemId:itm[0],loc:[itm[1],itm[2]]};}),
+                buildings:data[5].map(function(itm){return {itemId:itm[0],loc:[itm[1],itm[2]]};})
+            };
+        },
+        //Compresses the entire file into JSON data for saving
+        compressFile:function(){
+            var data = this.data;
+            
+            return file;
+        },
+        //Compresses and entire level
+        compressLevel:function(level){
+            return level;
+        },
+        //Compresses an individual item
+        compressItem:function(item){
+            return item;
+        }
+    });
+    
 };
+};
+
+if(typeof Quintus === 'undefined') {
+  module.exports = quintusFunctions;
+} else {
+  quintusFunctions(Quintus);
+}

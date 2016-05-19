@@ -28,55 +28,58 @@ Q.input.touchControls({
                ['fire', 'a' ]]
 });
 
-Q.SPRITE_NONE = 0;
-Q.SPRITE_DEFAULT = 1;
-Q.SPRITE_PICKUP = 2;
-Q.SPRITE_GROUND = 4;
-Q.SPRITE_SOLID = 8;
-Q.SPRITE_PLAYER = 16;
-Q.SPRITE_UI=64;
-Q.gravityY=0;
-Q.tileH=32;
-
-Q.soilNum = 8;
-Q.wateredSoilNum = 9;
-Q.seedNum = 22;
-Q.wateredSeedNum = 23;
 Q.getOrientation = function(){
     //If the width is greater than the height, orientation is true
     return Q.width>Q.height?true:false;
 };
 Q.orientation=Q.getOrientation();
+//Holds any actors that need to be added if they joined when there's no Q.stage(1)
+Q.state.set("actorsToAdd",[]);
 
 require(['socket.io/socket.io.js']);
 
 var socket = io.connect();
 
-var uniqueId = 0;//Math.floor(Math.random()*2);
+var userId = 0;//Math.floor(Math.random()*2);
+var uniqueId;
 function setUp(){
     
     /**CONNECTION**/  
     //When the user connects to the game
     socket.on('connected', function (data) {
-        //A global (in the Q object) that contains the current user info
-        Q.con = {playerId:data['playerId'],socket:socket};
-        console.log("I am "+data['playerId']);
+        console.log("I am "+data['uniqueId']);
+        uniqueId = data['uniqueId'];
         //Tell the server that this client has connected properly
         //This will be sent after login ince that is done. It will take the user to the lobby
         //The flow will be:
-        //User enters username/password -> get filename and unique id for this user from database 
+        //User enters username/password -> get filename and userId id for this user from database 
         //LOOK IN TO USING LevelUP DATABASE
-        socket.emit('confirmConnect',{file:"2d3axd",uniqueId:uniqueId});
+        socket.emit('confirmConnect',{file:"2d3axd",userId:userId,uniqueId:uniqueId});
     });
     
     //When a user disconnects from the game
     socket.on("disconnected",function(data){
-        //data contains the user that disconnected's id
-        console.log(data);
+        if(Q.stage(1)){
+            //data contains the user that disconnected's id
+            var actor = Q("Actor",1).items.filter(function(act){
+                return act.p.uniqueId===data.uniqueId;
+            })[0];
+            if(actor){
+                actor.destroy();
+            } else {console.log("Actor not found...");};
+        }
     });
     
     socket.on("joinedGame",function(data){
-        console.log(data)
+        var actor = new Q.Actor(data);
+        console.log("actor added"+data['uniqueId'])
+        //Add an actor for this new player
+        if(Q.stage(1)){
+            Q.stage(1).insert(actor);
+        } else {
+            var acts = Q.state.get("actorsToAdd");
+            acts.push(actor);
+        }
     });
     /**END CONNECTION**/
     
@@ -87,28 +90,73 @@ function setUp(){
     /**END INITIAL MENUS**/
     
     /**DURING GAMEPLAY**/
-    
+    Q.sendData=function(name,data){
+        data['map']=Q.state.get("currentLevel")['map'];
+        socket.emit(name,data);
+    };
+    socket.on("PlayerEvent",function(data){
+        var player = Q("Actor",1).items.filter(function(p){
+            return p.p.uniqueId===data['uniqueId'];
+        })[0];;
+        /*if(data['uniqueId']===uniqueId){
+            player = Q.state.get("playerObj");
+        } else {
+            player = Q("Actor",1).items.filter(function(p){
+                return p.p.uniqueId===data['uniqueId'];
+            })[0];
+        }*/
+        data['funcs'].forEach(function(func,i){
+            player[func](data['props'][i]);
+        });
+    });
+    socket.on("QEvent",function(data){
+        data['funcs'].forEach(function(func,i){
+            Q[func](data['props'][i]);
+        });
+    });
+    socket.on("timeTick",function(data){
+        Q.state.set("time",data);
+        //New day
+        if(data[0]===0&&data[1]===0){
+            var date = Q.state.get("date");
+            Q.state.set("date",{year:date.year,month:date.month,day:date.day+1});
+        }
+        Q.state.trigger("timeTick");
+    });
+    socket.on("changeProp",function(data){
+        var user = Q.state.get("playerObj");
+        user.p[data['prop']]=data['value'];
+        user.trigger("change_"+data['prop']);
+    });
+    socket.on("BagEvent",function(data){
+        data['funcs'].forEach(function(func,i){
+            Q.state.get("playerObj").Bag[func](data['props'][i]);
+        });
+    });
     /**END DURING GAMEPLAY**/
 }
 function setInitialState(data){
     Q.state.set(data);
-    Q.state.set("player",Q.state.get("activeUsers").filter(function(p){return p.uniqueId===uniqueId;})[0]);
-    //This will get all of the info from items.json and put it in bag.items
-    Q.setUpItems();
-    var levelData = Q.state.get("levelData");
-    var level = levelData["main_farm"];
-    level['map']="main_farm";
-    Q.startScene(level);
-   
+    Q.state.set("player",data['activeUsers'].filter(function(p){return p.uniqueId===uniqueId;})[0]);
+    Q.startScene(data['currentLevel']);
 };
 
 var imageFiles = [
     "player_1.png",
     "buildings.png",
     "ui_objects.png",
-    "pickups.png",
     "solid_interactables.png",
-    "menu_icons.png",
+    
+    "treasures.png",
+    "crops.png",
+    "food.png",
+    "materials.png",
+    "fish.png",
+    "meat.png",
+    "ores.png",
+    "bugs.png",
+    "equipment.png",
+    "other.png",
     
     "carrot.png"
 ];
@@ -118,49 +166,123 @@ for(i=0;i<imageFiles.length;i++){
 
 var jsonFiles = [
     "buildings.json",
-    "pickups.json",
     "items.json",
     "solid_interactables.json",
+    
     "crops.json",
-    "ui_objects.json",
-    "menu_icons.json"
+    "ui_objects.json"
 ];
 for(i=0;i<jsonFiles.length;i++){
     jsonFiles[i]="/data/json/"+jsonFiles[i];
 }
 Q.load(imageFiles.concat(jsonFiles).concat(["/lib/pathfinding-browser.min.js"]).join(','),function(){
-    Q.compileSheets("/images/buildings.png","/data/json/buildings.json");
-    Q.compileSheets("/images/pickups.png","/data/json/pickups.json");
-    Q.compileSheets("/images/solid_interactables.png","/data/json/solid_interactables.json");
-    Q.compileSheets("/images/ui_objects.png","/data/json/ui_objects.json");
-    Q.compileSheets("/images/menu_icons.png","/data/json/menu_icons.json");
     Q.setUpAnimations();
     setUp();
-    /*
-    
-    var currentObj = null;
-    Q.el.addEventListener('mousemove',function(e) {
-      var x = e.offsetX || e.layerX,
-          y = e.offsetY || e.layerY,
-          stage = Q.stage(1);
+    var jsons = [
+        '/data/json/buildings.json',
+        '/data/json/crops.json',
+        '/data/json/items.json',
+        '/data/json/pickups.json',
+        '/data/json/solid_interactables.json'
+    ];
+    var names = [
+        "Jbuildings",
+        "Jcrops",
+        "Jitems",
+        "Jpickups",
+        "JsolidInteractables"
+    ];
+    jsons.forEach(function(json,i){
+        Q.state.set(names[i],Q.assets[json]); 
+    });
+});
 
-      // Use the helper methods from the Input Module on Q to
-      // translate from canvas to stage
-      var stageX = Q.canvasToStageX(x, stage),
-          stageY = Q.canvasToStageY(y, stage);
+Q.startScene=function(data){
+    var sceneMap = data.map;
+    var music = data.music;
+    //Load the tmx map
+    Q.loadTMX(sceneMap+".tmx",function(){
+        //Load the music
+        Q.playMusic(music+".mp3",function(){ 
+            //Add the objects to the map
+            Q.makeScene(sceneMap,function(stage){
+                var ground = stage.groundLayer;
+                var collision = stage.collisionLayer;
+                var level = Q.state.get("currentLevel");
+                var bKeys = Object.keys(Q.state.get("Jbuildings"));
+                var iKeys = Object.keys(Q.state.get("Jitems"));
+                var cKeys = Object.keys(Q.state.get("Jcrops"));
+                var sKeys = Object.keys(Q.state.get("JsolidInteractables"));
+                level.buildings.forEach(function(building,i){
+                    stage.insert(new Q.Building({itemId:building.itemId,loc:building.loc,sheet:bKeys[building.itemId],uniqueId:i}));
+                });
+                level.pickups.forEach(function(pickup,i){
+                    stage.insert(new Q.Pickup({groupId:pickup.groupId,itemId:pickup.itemId,loc:pickup.loc,sheet:iKeys[pickup.groupId],frame:pickup.itemId,level:pickup.level,uniqueId:i}));
+                });
+                level.tilledSoil.forEach(function(soil){
+                    if(soil.watered>0){
+                        ground.setTile(soil.loc[0],soil.loc[1],Q.wateredSoilNum);
+                    } else {
+                        ground.setTile(soil.loc[0],soil.loc[1],Q.soilNum);
+                    }
+                });
+                level.crops.forEach(function(crop,i){
+                    //It's a crop that is not a seed
+                    if(crop.phase>=1){
+                        stage.insert(new Q.Crop({itemId:crop.itemId,loc:crop.loc,sheet:cKeys[crop.itemId],phase:crop.phase,watered:crop.watered,level:crop.level,uniqueId:i}));
+                    }
+                    //If it's a seed
+                    else if(crop.phase===0){
+                        collision.setTile(crop.loc[0],crop.loc[1],Q.seedNum);
+                    }
+                });
+                level.solidInteractables.forEach(function(int,i){
+                    stage.insert(new Q.SolidInteractable({itemId:int.itemId,loc:int.loc,sheet:sKeys[int.itemId],uniqueId:i}));
+                });
+                //Add any actors
+                Q.state.get("actorsToAdd").forEach(function(data){
+                    var actor = stage.insert(data);
+                });
+                Q.state.get("activeUsers").forEach(function(p){
+                    if(uniqueId===p.uniqueId){
+                        var player = stage.insert(new Q.Actor(p));//stage.insert(new Q.Player(p));
+                        player.add("Bag");
+                        //player.add("animation");
+                        Q.state.set("playerObj",player);
+                    } else {
+                        var actor = stage.insert(new Q.Actor(p));
+                    }
+                });
+                stage.add("viewport");
+                Q.addViewport(stage);
+                Q.stageScene("hud",2);
 
-      // Find the first object at that position on the stage
-      var obj = stage.locate(stageX,stageY,Q.SPRITE_ALL);
-
-      // Set a `hit` property so the step method for the 
-      // sprite can handle scale appropriately
-      if(currentObj) { currentObj.p.over = false; }
-      if(obj) {
-        currentObj = obj;
-        obj.p.over = true;
-      }
-      Q.state.get("mouseBlock").setPos(Math.floor(stageX/Q.tileH),Math.floor(stageY/Q.tileH));
-    });*/
+            });
+            //Stage the TMX tilemap
+            Q.stageScene(sceneMap,1,{sort:true});
+        });  
+    });
+};
+Q.makeScene = function(sceneName,callback){
+    Q.scene(sceneName,function(stage){
+        Q.stageTMX(sceneName+".tmx",stage);
+        stage.collisionLayer = stage.lists.TileLayer.filter(function(tl){
+            return tl.p.collision==="true";
+        })[0];
+        stage.groundLayer = stage.lists.TileLayer.filter(function(tl){
+            return tl.p.ground==="true";
+        })[0];
+        Q.state.set("mapWidth",stage.collisionLayer.p.cols);
+        Q.state.set("mapHeight",stage.collisionLayer.p.rows);
+        callback(stage);
+    },{sort:true});
+};
+//The upper heads up display. The contains the UICircles, side menu, time/date, health bar
+Q.scene("hud",function(stage){
+    //This inserts the HUD and all icons
+    var cont = stage.insert(new Q.HUD());
+    //Have to call this seperately since cont.stage doesn't exist in init.
+    cont.setUpHUD();
 });
 
 

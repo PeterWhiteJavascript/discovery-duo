@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "description": "A farming simulator influenced by Harvest Moon.",
   "main": "app.js",
-  "scripts": {
+  "scripts": {"start": "node main.js",
     "test": "node app.js"
   },
   "author": "Peter White",
   "license": "ISC",
   "dependencies": {
     "express": "^4.13.4",
+    "pathfinding": "^0.4.17",
     "socket.io": "^1.4.5",
     "tmx-parser": "^1.4.0"
   }

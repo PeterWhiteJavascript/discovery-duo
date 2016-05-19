@@ -1105,7 +1105,6 @@ Quintus.Scenes = function(Q) {
 
     if(dt < 0) { dt = 1.0/60; }
     if(dt > 1/15) { dt  = 1.0/15; }
-
     for(i =0,len=Q.stages.length;i<len;i++) {
       Q.activeStage = i;
       stage = Q.stage();

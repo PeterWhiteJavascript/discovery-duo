@@ -1,10 +1,16 @@
 Quintus.Music = function(Q){
-    
-Q.stopMusic=function(music){
+
+Q.tracklist = [
+    "farm1"
+];
+
+Q.stopMusic=function(track){
+    var music = Q.tracklist[track];
     Q.audio.stop("scenes/"+music);
 };
 
-Q.playMusic=function(music,callback){
+Q.playMusic=function(track,callback){
+    var music = Q.tracklist[track];
     if(Q.state.get("player").options.musicEnabled){
         var loadedMusic = Q.state.get("loadedMusic");
         var ld = loadedMusic.filter(function(songName){

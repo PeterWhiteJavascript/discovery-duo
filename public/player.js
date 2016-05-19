@@ -1,74 +1,89 @@
+var quintusPlayer = function(Quintus,PF) {
+"use strict";
 Quintus.Player=function(Q){
-    Q.component("serverCommunication",{
-        
-    });
     //Add to the player to control things that he does with equipment
     Q.component("solidInteraction",{
         extend:{
-            
-            tillSoil:function(touchLoc){
-                Q.ground.setTile(touchLoc[0],touchLoc[1],Q.soilNum);
-                Q.addSoil(touchLoc);
-                this.changeEnergy(this.getEnMod(-1));
+            //Called to get anything that affects how much energy a task takes
+            getEnMod:function(base){
+                //Special effect that makes everything only cost 1 energy
+                if(this.p.energized){
+                    return -1;
+                }
+                var mod = base;
+                var time = Q.state.get("time");
+                //Lose an aditional stamina per hour midnight and beyond
+                if(time[0]<=6){
+                    mod-=time[0]+1;
+                }
+                switch(true){
+                    case this.p.hunger===0:
+                        mod-=5;
+                        break;
+                    case this.p.hunger<10:
+                        mod-=3;
+                        break;
+                    case this.p.hunger<25:
+                        mod-=2;
+                        break;
+                    case this.p.hunger<50:
+                        mod-=1;
+                        break;
+                }
+                return mod;
             },
-            plantSeeds:function(touchLoc,groundNum){
-                var seedId = Q.state.get("player").seeds.itemId;
+            changeProp:function(prop,value){
+                this.p[prop]=value;
+                this.trigger("change_"+prop);
+            },
+            tillSoil:function(touchLoc){
+                this.stage.groundLayer.setTile(touchLoc[0],touchLoc[1],Q.soilNum);
+                this.changeProp("energy",this.p.energy+this.getEnMod(-1));
+            },
+            plantSeeds:function(touchLoc){
                 //Get the seeds from the bag
-                var seed = Q.state.get("player").bag.items.filter(function(item){
-                    return item.itemId===seedId;
-                })[0];
-                Q.ground.setTile(touchLoc[0],touchLoc[1],groundNum);
-                var item = this.useItem(seed);
+                var seed = this.Bag.getItem(this.Bag.seeds);
+                this.stage.collisionLayer.setTile(touchLoc[0],touchLoc[1],Q.seedNum);
+                var item = this.Bag.removeItem(seed);
+                this.Bag.trigger("use_item",item);
                 //Check if there's no more of this seed
                 if(item.amount===0){
-                    var seeds = Q.sortItems("seeds");
+                    var seeds = this.Bag.filterGroup(1);
                     if(seeds){
-                        Q.state.get("player").seeds = seeds[0];
+                        this.Bag.change_seeds(seeds[0]);
                     } else {
-                        Q.state.get("player").seeds = {};
+                        this.Bag.change_seeds({});
                     }
-                    this.trigger("change_seeds");
+                    this.Bag.trigger("change_seeds");
                 }
-                //Add the crop to the level data
-                Q.addCrop(seed.itemId,touchLoc);
-                this.changeEnergy(this.getEnMod(-1));
+                this.changeProp("energy",this.p.energy+this.getEnMod(-1));
             },
-            waterSoil:function(touchLoc,prop,groundNum){
-                var grounds = Q.state.get("currentLevel")[prop];
-                var ground = grounds.filter(function(gr){
-                    return gr.loc[0]===touchLoc[0]&&gr.loc[1]===touchLoc[1];
-                })[0];
-                ground.watered=Q.state.get("player").equipment.level*200;
-                if(prop==="crops"){
-                    ground.water-=1;
-                }
-                Q.ground.setTile(touchLoc[0],touchLoc[1],groundNum);
-                this.changeEnergy(this.getEnMod(-1));
+            waterSoil:function(touchLoc){
+                this.stage.groundLayer.setTile(touchLoc[0],touchLoc[1],Q.wateredSoilNum);
+                this.changeProp("energy",this.p.energy+this.getEnMod(-1));
             },
             pickCrop:function(crop){
-                var data = Q.assets['/data/json/crops.json'][crop.p.sheet];
-                Q.setJSONData(Q.assets['/data/json/items.json'][crop.p.sheet],crop);
+                var data = Q.assets[crop.p.fromServer+'/data/json/crops.json'][crop.p.sheet];
+                Q.setJSONData(Q.assets[crop.p.fromServer+'/data/json/items.json'][crop.p.sheet],crop);
                 if(this.pickUpItem(crop)){
                     //Set the crop back to the specified stage
                     if(data.reharvestable){
                         this.stage.insert(new Q.Crop({loc:crop.p.loc,sheet:crop.p.sheet,phase:data.reharvestable}));
                     } else {
-                        Q.removeCrop(crop.p.loc);
+                        var sceneMap = this.p.map;
+                        var activeStages = Q.state.get("activeStages");
+                        var active = activeStages.filter(function(st){
+                            return st.map = sceneMap;
+                        })[0];
+                        Q.removeCrop(active.levelData,crop.p.loc);
                     }
                 }
-                this.changeEnergy(this.getEnMod(-1));
+                this.changeProp("energy",this.p.energy+this.getEnMod(-1));
             },
-            chopWood:function(wood){
-                this.stage.insert(new Q.Pickup({loc:wood.p.loc,sheet:"lumber"}));
-                wood.destroy();
-                Q.removeSolidInteractable(wood.p.loc);
-                this.changeEnergy(this.getEnMod(-1));
-            },
-            breakRock:function(rock){
-                this.stage.insert(new Q.Pickup({loc:rock.p.loc,sheet:"stone"}));
-                rock.destroy();
-                Q.removeSolidInteractable(rock.p.loc);
-                this.changeEnergy(this.getEnMod(-1));
+            processSolidInteractable:function(pickup){
+                var iKeys = Object.keys(Q.state.get("Jitems"));
+                this.stage.insert(new Q.Pickup({groupId:pickup.item.groupId,itemId:pickup.item.itemId,loc:pickup.loc,sheet:iKeys[pickup.item.groupId],frame:pickup.item.itemId,level:this.Bag.equipment.level,uniqueId:this.stage.lists.Pickup.length}));
+                this.changeProp("energy",this.p.energy+this.getEnMod(-1));
             }
         }
     });
@@ -81,72 +96,117 @@ Quintus.Player=function(Q){
                 if(!dir){return this.p.dir;}else{return dir||"down";}
             },
             playStand:function(dir){
+                if(!this.play){return;}
                 this.p.dir = this.checkPlayDir(dir);
                 this.play("standing"+this.p.dir);
             },
             playWalk:function(dir){
+                if(!this.play){return;}
                 this.p.dir = this.checkPlayDir(dir);
                 this.play("walking"+this.p.dir);
-            }
+            },
         }
     });
-    Q.component("mover",{
-        added: function() {
+    Q.component("pathLogic",{
+        added:function(){
             this.entity.on("startMove",this,"startMove");
             this.entity.on("stopMove",this,"stopMove");
             this.entity.on("atDest",this,"atDest");
-            this.entity.p.speed = 2;
             this.entity.p.stepNum = Q.tileH;
             this.entity.p.stepCounter = 0;
         },
-        atDest:function(){
-            var p = this.entity.p;
-            this.entity.trigger("atMoveDest");
-            this.entity.trigger("playStand");
-            this.stopMove();
-            this.entity.playStand(p.dir);
+        getPath:function(loc,toLoc,near){
+            //Set up a graph for this movement
+            var grid = this.getWalkMatrix(new PF.Grid(Q.state.get("mapWidth"),Q.state.get("mapHeight")));
+            //Allow walking on the target square (If we're going near it) (The player doesn't actually walk on it)
+            if(near){
+                grid.setWalkableAt(toLoc[0],toLoc[1],true);
+            }
+            var finder = new PF.AStarFinder({
+                allowDiagonal:true,
+                dontCrossCorners:true
+            });
+            var path = finder.findPath(loc[0],loc[1],toLoc[0],toLoc[1],grid);
+            return path//PF.Util.compressPath(path);
         },
-        startMove:function(){
+        getWalkable:function(x,y){
             var p = this.entity.p;
-            //At the first point as it is the initial spot
-            this.atPoint();
-            if(!p.movePath[0]){this.stopMove;return;};
-            this.entity.on("step",this,"step");
-            var vel = this.getVelocity(p.movePath[0][0],p.movePath[0][1]);
-            this.entity.playWalk(this.checkVelDir(vel));
-            
+            var stage = p.curLevel?p.curLevel.stage:Q.stage(1);
+            //Check if there is solid ground
+            if(stage.collisionLayer.p.tiles[y][x]){
+                return true;
+            }
+            return false;
         },
+        getSolidObjs:function(){
+            var collidable = ["Building","SolidInteractable","Crop"];
+            var stage = this.entity.stage;
+            //Holds the collidable locations so the player can't walk on there.
+            //Based off of the objects loc, w, and h.
+            var locs = [];
+            //For each of the list items
+            collidable.forEach(function(col){
+                var objs = stage.lists[col];
+                if(objs){
+                    //Loop through each item in the list
+                    objs.forEach(function(obj){
+                        var lo = obj.p.colLocs.filter(function(loc){
+                            return stage.locate(loc[0]*Q.tileH,loc[1]*Q.tileH,Q.SPRITE_SOLID);
+                        });
+                        lo.forEach(function(l){
+                            locs.push(l);
+                        });
+                    });
+                }
+            });
+            return locs;
+        },
+        getWalkMatrix:function(grid){
+            var p = this.entity.p;
+            var uniqueId = p.uniqueId;
+            var mapWidth = Q.state.get("mapWidth");
+            var mapHeight = Q.state.get("mapHeight");
+            for(var i_walk=0;i_walk<mapHeight;i_walk++){
+                for(var j_walk=0;j_walk<mapWidth;j_walk++){
+                    if(this.getWalkable(j_walk,i_walk)){
+                        grid.setWalkableAt(j_walk,i_walk,false);
+                    };
+                }
+            }
+            //Get the solid objs locations
+            var solidObjs = this.getSolidObjs();
+            //Loop through the locs that are occupied by solid objects.
+            for(var i=0;i<solidObjs.length;i++){
+                //Set this spot to be not walkable
+                grid.setWalkableAt(solidObjs[i][0],solidObjs[i][1],false);
+            }
+            return grid;
+        },
+        
         stopMove:function(){
             var p = this.entity.p;
             this.stopMovement();
             this.entity.off("hit",this,"stopMovement");
             this.entity.off("step",this,"step");
+            Q.sendEvent("PlayerEvent",{funcs:["stopMove"],uniqueId:p.uniqueId,props:[]});
         },
         stopMovement:function(){
             var p =this.entity.p;
             p.vx=0;
             p.vy=0;
         },
-        //Returns the this.p.dir based off of movement
-        checkVelDir:function(vel){
-            //The max velocity in a certain direction is the thrust (p.speed)
-            var vx = Math.round(vel[0]);
-            var vy = Math.round(vel[1]);
-            var s = this.entity.p.speed;
-            //figure out which direction the object is travelling
-            //If I use diag anims, do another switch after this one and get rid of the equals signs in the switch
-            switch(true){
-                case vx<s/2&&vy<=s/2&&vy>-s/2:
-                    return "left";
-                case vx<s/2&&vx>=-s/2&&vy<s/2:
-                    return "up";
-                case vx>=s/2&&vy<s/2&&vy>=-s/2:
-                    return "right";
-                case vx<=s/2&&vx>-s/2&&vy>=s/2:
-                    return "down";
-            }
-            //If the vx,vy is not caught (eventually this should not happen) I will fix when I've decided whether to use diag anims or not
-            //console.log(vx,vy)
+        atDest:function(){
+            var p = this.entity.p;
+            this.entity.trigger("atMoveDest");
+            this.entity.trigger("stopMove");
+        },
+        startMove:function(){
+            var p = this.entity.p;
+            //At the first point as it is the initial spot
+            this.atPoint();
+            if(!p.movePath[0]){this.entity.trigger("stopMove");return;};
+            this.entity.on("step",this,"step");
+            this.getVelocity(p.movePath[0][0],p.movePath[0][1]);
         },
         //Run when the object gets to a point in the p.movePath
         atPoint:function(){
@@ -159,7 +219,6 @@ Quintus.Player=function(Q){
             else if(p.movePath.length===1){
                 this.entity.on("hit",this,"stopMovement");
             };
-            
         },
         //Gets the velocity needed to reach the next point
         getVelocity:function(toX,toY){
@@ -172,6 +231,10 @@ Quintus.Player=function(Q){
             var thrust = p.speed;
             var velX = (tx/dist)*thrust;
             var velY = (ty/dist)*thrust;
+            if(p.vx!==velX||p.vy!==velY){
+                this.entity.mover.changeVelocity({vx:velX,vy:velY});
+                Q.sendEvent("PlayerEvent",{funcs:["setXY","changeVelocity"],uniqueId:p.uniqueId,props:[{x:p.x,y:p.y},{vx:velX,vy:velY}]});
+            }
             return [velX,velY];
         },
         //Determines if this object is close enough to the next point
@@ -182,39 +245,254 @@ Quintus.Player=function(Q){
                 return true;
             } else
             //If the object is within the acceptable range of the point
-            if(Math.abs((p.x)-p.movePath[0][0])<1&&Math.abs((p.y)-p.movePath[0][1])<1){
+            if(Math.abs((p.x)-p.movePath[0][0])<2&&Math.abs((p.y)-p.movePath[0][1])<2){
                 return true;
             }
             return false;
             
         },
+        moveAlong:function(props){
+            var to = props.path;
+            var p = this.entity.p;
+            p.x = props.x;
+            p.y = props.y;
+            Q.getLoc(this.entity);
+            if(!to){this.entity.trigger("atDest");return;};
+            p.movePath = [];
+            //TO DO: Add some more smoothing between points that have no objects between them.
+            for(var i=0;i<to.length;i++){
+                //The xy locations of the next move
+                p.movePath.push([to[i][0]*Q.tileH+p.w/2,to[i][1]*Q.tileH+p.h/4]);
+
+            }
+            this.entity.trigger("stopMove");
+            this.entity.trigger("startMove");
+        },
         step:function(dt){
             var p = this.entity.p;
-            var vel = this.getVelocity(p.movePath[0][0],p.movePath[0][1]);
-            p.x+=vel[0];
-            p.y+=vel[1];
-            //Not perfectly accurate, but it will work.
-            p.stepCounter+=Math.abs(vel[0])+Math.abs(vel[1]);
-            if(p.stepCounter>p.stepNum){p.stepCounter=0;Q.state.get("player")['steps']=Q.state.get("player")['steps']+1;};
-            p.z = p.y;
-            this.entity.playWalk(this.checkVelDir(vel));
             if(this.close()){
                 this.atPoint();
+                return;
+            }
+            var vel = this.getVelocity(p.movePath[0][0],p.movePath[0][1]);
+            p.z = p.y;
+            //Not perfectly accurate, but it will work.
+            p.stepCounter+=Math.abs(vel[0])+Math.abs(vel[1]);
+            if(p.stepCounter>p.stepNum){p.stepCounter=0;p.steps++;};
+            //console.log(p.steps)
+            
+        }
+    });
+    Q.component("mover",{
+        added: function() {
+            this.entity.p.speed = 100;
+        },
+        stopMove:function(){
+            var p = this.entity.p;
+            this.stopMovement();
+            this.entity.off("hit",this,"stopMovement");
+            this.entity.off("step",this,"step");
+        },
+        stopMovement:function(){
+            var p =this.entity.p;
+            p.vx=0;
+            p.vy=0;
+        },
+        changeVelocity:function(props){
+            this.entity.p.vx = props.vx;
+            this.entity.p.vy = props.vy;
+        },
+        
+        extend:{
+            //Returns the this.p.dir based off of movement
+            checkVelDir:function(vx,vy){
+                var s = this.p.speed;
+                //figure out which direction the object is travelling
+                //If I use diag anims, do another switch after this one and get rid of the equals signs in the switch
+                /*   \ U /
+                 *    \ / 
+                 *  L  o  R
+                 *    / \
+                 *   / D \
+                 */
+                var m = 1.25;
+                switch(true){
+                    case vx>=-s/m&&vx<=s/m&&vy<=0:
+                        return "up";
+                    case vx>0&&vy>-s/m&&vy<s/m:
+                        return "right";
+                    case vx<=s/m&&vx>=-s/m&&vy>=0:
+                        return "down";
+                    case vx<0&&vy>-s/m&&vy<s/m:
+                        return "left";
+                }
+                //If the vx,vy is not caught (eventually this should not happen) I will fix when I've decided whether to use diag anims or not
+                //console.log(vx,vy)
+            },
+            moveAlong:function(to){
+                this.pathLogic.moveAlong(to);
+            },
+            changeVelocity:function(props){
+                this.mover.changeVelocity(props);
+                this.p.z = this.p.y;
+                this.playWalk(this.checkVelDir(this.p.vx,this.p.vy));
+            },
+            setXY:function(pos){
+                this.p.x = pos.x;
+                this.p.y = pos.y;
+            },
+            stopMove:function(){
+                if(this.p.vx||this.p.vy){
+                    this.playStand(this.checkVelDir(this.p.vx,this.p.vy));
+                }
+                this.mover.stopMove();
+            }
+        }
+    });
+    Q.component("Bag",{
+        added:function(){
+            //The player
+            var p = this.entity.p;
+            this.compressedItems = p.bag.items;
+            this.decompressItems();
+            this.maxWeight = p.bag.maxWeight;
+            this.equipment = p.bag.equipment;
+            this.seeds = p.bag.seeds;
+            this.held = p.bag.held;
+            this.weight = this.calculateWeight();
+            this.setActive();
+            this.kindOrder = ["treasures","seeds","crops","food","materials","fish","meat","ores","bugs","equipment","other"];
+        },
+        //Decompresses all of the items that are saved in the saveData
+        decompressItems:function(){
+            var newItems = [];
+            var d = Q.state.get("Jitems");
+            var k = Object.keys(d);
+            var items = this.compressedItems;
+            items.forEach(function(itm){
+                var data = d[k[itm[0]]][itm[1]];
+                var keys = Object.keys(data);
+                var item = {};
+                keys.forEach(function(key){
+                    item[key]=data[key];
+                });
+                item.groupId = itm[0];
+                item.itemId = itm[1];
+                item.level = itm[2];
+                item.amount = itm[3];
+                item.sheet = k[item.groupId];
+                if(item.sheet==="seeds"){item.sheet="crops";};
+                item.frame = item.itemId;
+                newItems.push(item);
+            });
+            this.items = newItems;
+        },
+        setActive:function(){
+            var props = ["equipment","seeds","held"];
+            var t = this;
+            props.forEach(function(prop){
+                var data = t[prop];
+                t[prop] = t.items[data];
+            });
+        },
+        //Gets an item that is in the bag based on its level, itemId, and groupId
+        getItem:function(itm){
+            if(!itm){return false;};
+            return this.items.filter(function(i){
+                return i.level===itm.level&&i.itemId===itm.itemId&&i.groupId===itm.groupId;
+            })[0];
+        },
+        change_equipment:function(to){
+            this.equipment = this.getItem(to);
+            this.trigger("change_equipped");
+        },
+        change_seeds:function(to){
+            this.seeds = this.getItem(to);
+            this.trigger("change_seeds");
+        },
+        change_held:function(to){
+            this.held = this.getItem(to);
+            this.trigger("change_held");
+        },
+        calculateWeight:function(){
+            var weight = 0;
+            this.items.forEach(function(item){
+                weight+=item.weight;
+            });
+            return weight;
+        },
+        changeWeight:function(by){
+            this.weight+=by;
+            this.trigger("change_bag_weight");
+        },
+        //Adds an item to the bag. Also checks if the item already exists (Just adds one to amount in that case)
+        addItem:function(item){
+            //Change the bag's weight
+            this.changeWeight(item.weight);
+            //The items that are currently in the bag
+            var items = this.items;
+            //Get the item if it already exists in the bag
+            var curItem = items.filter(function(itm){
+                return itm.itemId===item.itemId&&itm.groupId===item.groupId&&itm.level===item.level;
+            })[0];
+            //If there was already one of these items in the bag, increase the amount by one
+            if(curItem){
+                curItem.amount++;
+            } 
+            //Else, add a new entry for this item
+            else {
+                var data = Q.getItemsByGroupId(item.groupId)[item.itemId];
+                var keys = Object.keys(data);
+                keys.forEach(function(key){
+                    item[key] = data[key];
+                });
+                item.amount = 1;
+                item.sheet = Object.keys(Q.state.get("Jitems"))[item.groupId];
+                item.frame = item.itemId;
+                items.push(item);
+                if(item.groupId===1||item.groupId===9){
+                    this.trigger("change_"+item.sheet);
+                }
+                this.trigger("change_held");
             }
         },
-        extend:{
-            moveAlong:function(to){
-                if(!to){this.trigger("atDest");return;};
-                this.p.movePath = [];
-                //TO DO: Add some more smoothing between points that have no objects between them.
-                for(var i=0;i<to.length;i++){
-                    //The xy locations of the next move
-                    this.p.movePath.push([to[i][0]*Q.tileH+this.p.w/2,to[i][1]*Q.tileH+this.p.h/4]);
-                    
-                }
-                this.trigger("stopMove");
-                this.trigger("startMove");
+        removeItem:function(data){
+            var item = this.getItem(data);
+            this.changeWeight(-item.weight);
+            item.amount--;
+            if(item.amount<=0){
+                this.items.splice(this.items.indexOf(item),1);
             }
+            return item;
+        },
+        changeItem:function(){
+            
+        },
+        search:function(){
+            
+        },
+        sort:function(){
+            
+        },
+        filterGroup:function(group){
+            var items = this.items;
+            return items.filter(function(itm){
+                return itm.groupId===group;
+            });
+            
+        },
+        //Incomplete
+        filterBy:function(sortBy){
+            var items = this.items;
+            var sorted = [];      
+            sortBy.forEach(function(srt){
+                var by = srt.by;
+                var dir = srt.dir;
+                var prop = srt.prop;
+            })
+            items.filter(function(itm){
+                return itm
+            })
         }
     });
     Q.Sprite.extend("Player",{
@@ -222,14 +500,15 @@ Quintus.Player=function(Q){
             this._super(p,{
                 sprite:"player",
                 sheet:"player_1",
-                type:Q.SPRITE_PLAYER,
+                type:Q.SPRITE_PLAYER|Q.SPRITE_INTERACTABLE,
                 collisionMask:Q.SPRITE_SOLID,
                 w:32,
                 h:64,
                 dir:"down"
             });
             this.add("2d, animation");
-            this.add("serverCommunication, mover, animations, solidInteraction");
+            this.add("mover, solidInteraction, pathLogic, animations");
+            this.add("Bag");
             var cx = this.p.w/2;
             var cy = this.p.h/2+this.p.h/4+this.p.h/8;
             this.p.cx = cx;
@@ -237,7 +516,6 @@ Quintus.Player=function(Q){
             
             this.p.x = this.p.loc[0]*Q.tileH+this.p.w/2;
             this.p.y = this.p.loc[1]*Q.tileH+this.p.h/4;
-            
             this.p.z = this.p.y;
             var boxW=32/3;
             var boxH=32/6;
@@ -253,31 +531,38 @@ Quintus.Player=function(Q){
                 [origX+boxW*0,origY+boxH*2],
                 [origX+boxW*0,origY+boxH*1]
             ];
-            this.playStand(this.p.dir);
             this.getLoc();
+            this.trigger("playStand",this.p.dir);
+        },
+        touched:function(){
+            
         },
         //Moves the player to the target location
         moveTo:function(toLoc){
-            this.moveAlong(Q.getPath(this,this.p.loc,toLoc));
+            var path = this.pathLogic.getPath(this.p.loc,toLoc);
+            this.pathLogic.moveAlong({path:path,x:this.p.x,y:this.p.y});
+            //Q.sendEvent("PlayerEvent",{funcs:["moveAlong"],uniqueId:this.p.uniqueId,props:[{path:path,x:this.p.x,y:this.p.y}]});
         },
         //Moves the player one square away from the target location
         //Set near to true to allow moving near solid objects
         moveNear:function(to,item,near){
+            this.getLoc();
             //Remainder
             var remX = Math.floor((to.x/Q.tileH-Math.floor(to.x/Q.tileH))*Q.tileH);
             var remY = Math.floor((to.y/Q.tileH-Math.floor(to.y/Q.tileH))*Q.tileH);
             var toLoc = [Math.floor((to.x-remX)/Q.tileH),Math.floor((to.y-remY)/Q.tileH)];
-            this.getLoc();
-            var path = Q.getPath(this,this.p.loc,toLoc,near);
-            var close = PF.Util.expandPath(path);
-            close.pop();
+            
             //If the player is beside the object or on the object and there is an object
             if(Q._isObject(item)&&this.besideTargetLoc(this.p.loc,toLoc)){
                 item.interact(this);
-            } 
-            //If the player is not near the target
+            }
+            //If the player is not near the target, move near
             else if(!this.besideTargetLoc(this.p.loc,toLoc)){
-                this.moveAlong(PF.Util.compressPath(close),to);
+                var path = this.pathLogic.getPath(this.p.loc,toLoc,near);
+                var close = PF.Util.expandPath(path);
+                close.pop();
+                PF.Util.compressPath(close);
+                this.pathLogic.moveAlong({path:close,x:this.p.x,y:this.p.y});
             }
         },
         besideTargetLoc:function(loc,toLoc){
@@ -294,46 +579,24 @@ Quintus.Player=function(Q){
         //Interaction functions
         pickUpItem:function(item){
             //The player's bag
-            var bag = Q.state.get("player").bag;
-            //The max weight
-            var max = bag.maxWeight;
-            //The current weight
-            var weight = bag.weight;
-            //The item's weight
-            var itemWeight = item.p.weight;
+            var bag = this.Bag;
             //If there's room in the bag
-            if(itemWeight+weight<=max){
-                bag.weight+=itemWeight;
-                this.trigger("change_bag_weight");
-                //The items that are currently in the bag
-                var items = bag.items;
-                var curItem = items.filter(function(itm){
-                    return itm.itemId===item.p.itemId&&itm.level===item.p.level;
-                })[0];
-                //If there was already one of these items in the bag, increase the amount by one
-                if(curItem){
-                    curItem.amount++;
-                } 
-                //Else, add a new entry for this item
-                else {
-                    var data = Q.getItemData(item.p.itemId);
-                    data.itemId = item.p.itemId;
-                    data.level = item.p.level;
-                    data.amount = 1;
-                    items.push(data);
-                    if(data.kind==="equipment"||data.kind==="seeds"){
-                        this.trigger("change_"+data.kind);
-                    } else {
-                        this.trigger("change_held");
-                    }
-                }
+            if(item.p.weight+bag.weight<=bag.maxWeight){
+                var itm = {
+                    itemId:item.p.itemId,
+                    groupId:item.p.groupId,
+                    level:item.p.level,
+                    weight:item.p.weight
+                };
+                bag.addItem(itm);
+                Q.socketEmit(this.socket,"BagEvent",{funcs:["addItem"],props:[itm]});
                 this.stage.remove(item);
-                this.stage.insert(new Q.DynamicText({text:item.p.name+" +1",color:"#ffffff", x:this.p.x-this.p.w/2,y:this.p.y-this.p.h/2}));
+                Q.sendEvent("QEvent",{funcs:["removeItem","showDynamicText"],uniqueId:this.p.uniqueId,props:[{loc:item.p.loc},{text:item.p.name+" +1",x:this.p.x-this.p.w/2,y:this.p.y-this.p.h/2}]});
                 return true;
             } 
             //If there's no room in the bag
             else {
-                this.stage.insert(new Q.DynamicText({text:"No room in bag!",color:"#ffffff", x:this.p.x-this.p.w/2,y:this.p.y-this.p.h/2}));
+                Q.sendEvent("QEvent",{funcs:["showDynamicText"],uniqueId:this.p.uniqueId,props:[{text:"No more room in bag!",x:this.p.x-this.p.w/2,y:this.p.y-this.p.h/2}]});
                 return false;
             }
         },
@@ -342,154 +605,149 @@ Quintus.Player=function(Q){
         },
         //Checks if there is a certain tool equipped and that tool's level is enough
         checkEquipment:function(equipment,level){
-            var eq = Q.state.get("player").equipment;
-            if(eq.itemId===equipment&&eq.level>=level){
+            var eq = this.Bag.equipment;
+            if(eq&&eq.name===equipment&&eq.level>=level){
                 return true;
             }
             return false;
         },
         //Checks if seeds are equipped
         checkSeeds:function(){
-            if(Q.state.get("player").seeds&&Q.state.get("player").seeds.itemId){
+            if(this.Bag.seeds&&this.Bag.seeds.itemId>=0){
                 return true;
             }
             return false;
         },
         processTouch:function(touch){
-            var touchLoc = Q.getTouchLoc(touch);
+            var stage = this.stage;
+            //Make sure this player's loc is set properly
             this.getLoc();
-            //If we're touching soil and we're beside the soil
-            var ground = Q.checkGround(Q.ground.p.tiles[touchLoc[1]][touchLoc[0]]);
-            if(ground.type){
-                //If the player does not have the proper tool to interact with the square, move onto it. Else, move near it
-                switch(ground.type){
-                    case "soil":
-                        if(ground.tilled){
-                            //If we're watering
-                            if(ground.seeded){
-                                //Only water if it's not already done
-                                if(!ground.watered){
-                                    if(this.checkEquipment("watering_can",1)){
+            //If we're touching an object
+            if(touch.loc){
+                var obj = stage.locate(touch['x'],touch['y'],Q.SPRITE_INTERACTABLE);
+                if(obj){
+                    obj.touched(touch,this);
+                }
+            } 
+            //If there's no object where the player touched
+            else {
+                //Get the square where the user touched.
+                var touchLoc = Q.getTouchLoc(touch);
+                //The layer that stores the walkable ground
+                var gr = stage.groundLayer;
+                //The layer that stores the non-walkable ground
+                var tl = stage.collisionLayer;
+                //If we're touching soil and we're beside the soil
+                var ground = Q.checkGround(gr.p.tiles[touchLoc[1]][touchLoc[0]],tl.p.tiles[touchLoc[1]][touchLoc[0]]);
+                //The level data
+                var levelData = this.p.curLevel.levelData;
+                //The current map
+                var map = this.p.curLevel.map;
+                if(ground.type){
+                    //If the player does not have the proper tool to interact with the square, move onto it. Else, move near it
+                    switch(ground.type){
+                        case "soil":
+                            if(ground.tilled){
+                                //If we're watering
+                                if(ground.seeded){
+                                    //Only water if it's not already done
+                                    if(!ground.watered){
+                                        if(this.checkEquipment("Watering Can",1)){
+                                            //Watering a tilledSoil that has a seed in it
+                                            if(this.besideTargetLoc(this.p.loc,touchLoc)){
+                                                this.waterSoil(touchLoc);
+                                                Q.sendEvent("PlayerEvent",{funcs:["waterSoil"],uniqueId:this.p.uniqueId,props:[touchLoc]});
+                                                //Set the soil to be watered in the levelData
+                                                var soil = levelData.getItem(map,"tilledSoil",touchLoc);
+                                                soil.watered = this.Bag.equipment.level*4;
+                                                return;
+                                            } else {
+                                                //Move near the planted seed
+                                                this.moveNear(touch,touchLoc,true);
+                                                return;
+                                            }
+                                        } else {
+                                            //Move near the planted seed
+                                            this.moveNear(touch,touchLoc,true);
+                                            return;
+                                        }
+                                    } else {
+                                        //Move near the planted seed
+                                        this.moveNear(touch,touchLoc,true);
+                                        return;
+                                    }
+                                } 
+                                else {
+                                    //If we're watering tilled soil with no seed
+                                    if(!ground.watered){
+                                        if(this.checkEquipment("Watering Can",1)){
+                                            if(this.besideTargetLoc(this.p.loc,touchLoc)){
+                                                this.waterSoil(touchLoc);
+                                                Q.sendEvent("PlayerEvent",{funcs:["waterSoil"],uniqueId:this.p.uniqueId,props:[touchLoc]});
+                                                //Set the soil to be watered in the levelData
+                                                var soil = levelData.getItem(map,"tilledSoil",touchLoc);
+                                                soil.watered = this.Bag.equipment.level*4;
+                                                return;
+                                            }
+                                        }
+                                    } 
+                                    //If we're planting seeds
+                                    if(this.checkSeeds()){
                                         if(this.besideTargetLoc(this.p.loc,touchLoc)){
-                                            this.waterSoil(touchLoc,"crops",Q.wateredSeedNum);
+                                            var seedData = Q.state.get("Jitems").seeds[this.Bag.seeds.itemId].phases[0];
+                                            //Add the crop to the level data
+                                            levelData.addItem(map,"crops",{loc:touchLoc,phase:0,level:1,crop:this.Bag.seeds.itemId,water:seedData.water,sun:seedData.sun,days:seedData.days});
+                                            this.plantSeeds(touchLoc);
+                                            
+                                            Q.sendEvent("PlayerEvent",{funcs:["plantSeeds"],uniqueId:this.p.uniqueId,props:[touchLoc]});
+                                            this.pathLogic.stopMove(); 
                                             return;
                                         }
                                     } else {
                                         this.moveTo(touchLoc);
                                         return;
                                     }
-                                } else {
-                                    this.moveTo(touchLoc);
-                                    return;
                                 }
                             } 
+                            //If the soil is not tilled, till it
                             else {
-                                //If we're watering tilled soil
-                                if(!ground.watered){
-                                    if(this.checkEquipment("watering_can",1)){
-                                        if(this.besideTargetLoc(this.p.loc,touchLoc)){
-                                            this.waterSoil(touchLoc,"tilledSoil",Q.wateredSoilNum);
-                                            return;
-                                        }
-                                    }
-                                } 
-                                //If we're planting seeds
-                                if(this.checkSeeds()){
+                                if(this.checkEquipment("Hoe",1)){
                                     if(this.besideTargetLoc(this.p.loc,touchLoc)){
-                                        var groundNum = ground.watered?Q.wateredSeedNum:Q.seedNum;
-                                        this.plantSeeds(touchLoc,groundNum);
-                                        this.mover.stopMove(); 
+                                        levelData.addItem(map,"tilledSoil",{loc:touchLoc,days:this.Bag.equipment.level,water:0});
+                                        this.tillSoil(touchLoc);
+                                        Q.sendEvent("PlayerEvent",{funcs:["tillSoil"],uniqueId:this.p.uniqueId,props:[touchLoc]});
+                                        this.pathLogic.stopMove(); 
                                         return;
-                                    }
+                                    } 
                                 } else {
                                     this.moveTo(touchLoc);
                                     return;
                                 }
                             }
-                        } 
-                        //If the soil is not tilled, till it
-                        else {
-                            if(this.checkEquipment("hoe",1)){
-                                if(this.besideTargetLoc(this.p.loc,touchLoc)){
-                                    this.tillSoil(touchLoc);
-                                    this.mover.stopMove(); 
-                                    return;
-                                } 
-                            } else {
-                                this.moveTo(touchLoc);
-                                return;
-                            }
-                        }
-                        break;
+                            break;
+                    }
+                    this.moveNear(touch,touchLoc,true);
+                    return;
                 }
-                this.moveNear(touch,touchLoc,true);
-                return;
+                //If we're touching a collision tile from a tile layer
+                if(tl.p.tiles[touchLoc[1]][touchLoc[0]]){
+                    //This only allows the player to move near a spot that can be moved near
+                    this.moveNear(touch,touchLoc,true);
+                    return;
+                }
+                //If we're just moving to a place
+                else {
+                    this.moveTo(touchLoc);
+                    return;
+                }
             }
-            //If we're touching a collision tile from a tile layer
-            if(Q.TL.p.tiles[touchLoc[1]][touchLoc[0]]){
-                //This only allow the player to move near a spot that can be moved near
-                this.moveNear(touch,touchLoc,true);
-                return;
-            }
-            //If we're just moving to a place
-            else {
-                this.moveTo(touchLoc);
-                return;
-            }
-        },
-        //Called to get anything that affects how much energy a task takes
-        getEnMod:function(base){
-            //Special effect that makes everything only cost 1 energy
-            if(this.p.energized){
-                return -1;
-            }
-            var mod = base;
-            var time = Q.state.get("time");
-            //Lose an aditional stamina per hour midnight and beyond
-            if(time[0]<=6){
-                mod-=time[0]+1;
-            }
-            switch(true){
-                case this.p.hunger===0:
-                    mod-=5;
-                    break;
-                case this.p.hunger<10:
-                    mod-=3;
-                    break;
-                case this.p.hunger<25:
-                    mod-=2;
-                    break;
-                case this.p.hunger<50:
-                    mod-=1;
-                    break;
-            }
-            return mod;
-        },
-        changeEnergy:function(amount){
-            this.p.energy+=amount;
-            this.trigger("change_energy");
-            //TO DO: if we run out of energy
-        },
-        changeHunger:function(amount){
-            this.p.hunger+=amount;
-            this.trigger("change_hunger");
-        },
-        //Use one of this item
-        useItem:function(item){
-            var bag = Q.state.get("player").bag;
-            var items = bag.items;
-            var it = items.filter(function(itm){
-                return item.itemId===itm.itemId&&item.level===itm.level;
-            })[0];
-            it.amount-=1;
-            bag.weight-=it.weight;
-            this.trigger("change_bag_weight");
-            if(it.amount<=0){
-                items.splice(items.indexOf(it),1);
-            }
-            this.trigger("use_item",item);
-            return it;
         }
     });
 
 };
+};
+if(typeof Quintus === 'undefined') {
+  module.exports = quintusPlayer;
+} else {
+  quintusPlayer(Quintus);
+}

@@ -88,7 +88,6 @@ Quintus.UI_Objects = function(Q){
                 //Held
                 var red = this.insert(new Q.UICircle({x:this.setPos(0),y:this.setPos(5),sheet:"ui_circle_red",menuProp:"held"}));
                 red.getIcon();
-                
                 var bagBase = this.insert(new Q.UIBagEncyBase({x:this.setPos(0),y:this.setPos(7),w:this.p.w,menuProp:"bag"}));
                 var bag = this.insert(new Q.UIBagEncy({x:this.setPos(0.25),y:this.setPos(7),sheet:"ui_bag_icon"}));
                 var bagWeight = this.insert(new Q.UIBagWeight({x:this.setPos(1.5),y:this.setPos(7.5)}));
@@ -185,11 +184,11 @@ Quintus.UI_Objects = function(Q){
             this.on("touch");
             //Listen for all events
             if(this.p.menuProp==="held"){
-               Q.state.get("playerObj").on("change_equipment",this,"changeItem");
-               Q.state.get("playerObj").on("change_seeds",this,"changeItem");
-               Q.state.get("playerObj").on("change_held",this,"changeItem");
+                Q.state.get("playerObj").Bag.on("change_equipment",this,"changeItem");
+                Q.state.get("playerObj").Bag.on("change_seeds",this,"changeItem");
+                Q.state.get("playerObj").Bag.on("change_held",this,"changeItem");
             } else {
-                Q.state.get("playerObj").on("change_"+this.p.menuProp,this,"changeItem");
+                Q.state.get("playerObj").Bag.on("change_"+this.p.menuProp,this,"changeItem");
             }
         },
         //Loads the sorted bag with possible items to be used in this circle
@@ -220,46 +219,48 @@ Quintus.UI_Objects = function(Q){
         },
         //This is for the small icons
         showIcon:function(){
-            var items = Q.sortItems(this.p.menuProp);
+            var items;
+            switch(this.p.menuProp){
+                case "equipment":
+                    items = Q.state.get("playerObj").Bag.filterGroup(9);
+                    break;
+                case "seeds":
+                    items = Q.state.get("playerObj").Bag.filterGroup(1);
+                    break;
+                case "held":
+                    items = Q.state.get("playerObj").Bag.items;
+                    break;
+            }
+             
             this.stage.insert(new Q.UISortedCircle({sheet:this.p.sheet,x:-Q.tileH,y:0,menuProp:this.p.menuProp}),this);
             var x = -Q.tileH;
             var y = Q.tileH;
             for(var i=0;i<items.length;i++){
+                var item = items[i];
                 var circle = this.stage.insert(new Q.UISortedCircle({sheet:this.p.sheet,x:x,y:y,menuProp:this.p.menuProp,item:items[i]}),this);
-                if(items[i].kind==="seeds"){
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_seeds",x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+items[i].crop,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
-                    this.stage.insert(new Q.UIItemText({labelString:"x",num:items[i].amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:items[i]}),circle);
-                } else if(items[i].kind==="materials"){
-                    this.stage.insert(new Q.UIIcon({sheet:items[i].itemId,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
-                    this.stage.insert(new Q.UIItemText({labelString:"x",num:items[i].amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:items[i]}),circle);
-                } else {
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+items[i].itemId,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
-                    this.stage.insert(new Q.UIItemText({labelString:"x",num:items[i].amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:items[i]}),circle);
+                if(item.groupId===1){
+                    this.stage.insert(new Q.UIIcon({sheet:"equipment",frame:7,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
                 }
-                this.stage.insert(new Q.UIItemText({labelString:"lv. ",num:items[i].level,x:Q.tileH-2,y:Q.tileH/4}),circle);
+                this.stage.insert(new Q.UIIcon({sheet:item.sheet,frame:item.frame,x:Q.tileH/2-1,y:Q.tileH/2-1}),circle);
+                this.stage.insert(new Q.UIItemText({labelString:"x",num:item.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:item}),circle);
+                this.stage.insert(new Q.UIItemText({labelString:"lv. ",num:item.level,x:Q.tileH-2,y:Q.tileH/4}),circle);
                 if(y===0){y=Q.tileH;}else{x-=Q.tileH;y=0;};
             }
             this.p.open=true;
         },
         //This is for the big icons
         getIcon:function(){
-            var prop = Q.state.get("player")[this.p.menuProp];
-            if(prop&&prop.itemId){
-                var data = Q.getItemData(prop.itemId);
-                if(prop.amount<=0){return;};
-                if(data.kind==="seeds"){
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_seeds",x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+data.crop,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
-                    this.stage.insert(new Q.UIItemText({labelString:"x",num:prop.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:prop}),this);
-                } else if(data.kind==="materials"){
-                    this.stage.insert(new Q.UIIcon({sheet:prop.itemId,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
-                    this.stage.insert(new Q.UIItemText({labelString:"x",num:prop.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:prop}),this);
-                } else {
-                    this.stage.insert(new Q.UIIcon({sheet:"icon_"+prop.itemId,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
-                    this.stage.insert(new Q.UIItemText({labelString:"x",num:prop.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:prop}),this);
+            var item = Q.state.get("playerObj").Bag[this.p.menuProp];
+            if(item&&item.itemId>=0){
+                if(item.amount<=0){return;};
+                //If it's a seed, we need to add a seed base
+                if(item.groupId===1){
+                    this.stage.insert(new Q.UIIcon({sheet:"equipment",frame:7,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
                 }
-                this.stage.insert(new Q.UIItemText({labelString:"lv. ",num:prop.level,x:Q.tileH-2,y:Q.tileH/4}),this);
+                this.stage.insert(new Q.UIIcon({sheet:item.sheet,frame:item.frame,x:Q.tileH/2-2,y:Q.tileH/2-2}),this);
+                this.stage.insert(new Q.UIItemText({labelString:"x",num:item.amount,x:Q.tileH-2,y:Q.tileH+Q.tileH/2,item:item}),this);
+                
+                var text =this.stage.insert(new Q.UIItemText({labelString:"lv. ",num:item.level,x:Q.tileH-2,y:Q.tileH/4}),this);
             }
         }
     });
@@ -271,7 +272,7 @@ Quintus.UI_Objects = function(Q){
             });
             this.setLabel();
             if(this.p.labelString==="x"){
-                Q.state.get("playerObj").on("use_item",this,function(item){
+                Q.state.get("playerObj").Bag.on("use_item",this,function(item){
                     if(this.p.item.itemId===item.itemId&&this.p.item.level===item.level){
                         this.p.num = item.amount;
                         this.setLabel();
@@ -296,13 +297,21 @@ Quintus.UI_Objects = function(Q){
            this.on("touch");
        },
        touch:function(){
+            var func = "change_"+this.p.menuProp;
+            var data = {func:func,props:{}};
            //If we're making the slot empty
             if(!this.p.item){
-                Q.state.get("player")[this.p.menuProp]={};
-                
+                Q.state.get("playerObj").Bag[func]({});
             } else {
-                Q.state.get("player")[this.p.menuProp]=this.p.item;
+                Q.state.get("playerObj").Bag[func](this.p.item);
+                data.props.name = this.p.item.name;
+                data.props.level = this.p.item.level;
+                data.props.groupId = this.p.item.groupId;
+                data.props.itemId = this.p.item.itemId;
             }
+            //Send the data to the server so the active can be updated there.
+            Q.sendData("bagFunc",data);
+            //Change the UI visual
             this.container.changeItem();
        }
    });
@@ -376,10 +385,10 @@ Quintus.UI_Objects = function(Q){
                  type:Q.SPRITE_NONE
             });
             this.setLabel();
-            Q.state.get("playerObj").on("change_bag_weight",this,"setLabel");
+            Q.state.get("playerObj").Bag.on("change_bag_weight",this,"setLabel");
         },
         setLabel:function(){
-            this.p.label = Q.state.get("player").bag.weight+"/"+Q.state.get("player").bag.maxWeight;
+            this.p.label = Q.state.get("playerObj").Bag.weight+"/"+Q.state.get("playerObj").Bag.maxWeight;
         }
     });
     Q.Sprite.extend("UIDateTimeBase",{
