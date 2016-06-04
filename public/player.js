@@ -223,19 +223,9 @@ Quintus.Player=function(Q){
         //Gets the velocity needed to reach the next point
         getVelocity:function(toX,toY){
             var p = this.entity.p;
-            var tx = toX-p.x;
-            var ty = toY-p.y;
-            var dist = Math.sqrt(tx*tx+ty*ty);
-            //var rad  = Math.atan2(ty,tx);
-            //var angle = rad/Math.PI*180;
-            var thrust = p.speed;
-            var velX = (tx/dist)*thrust;
-            var velY = (ty/dist)*thrust;
-            if(p.vx!==velX||p.vy!==velY){
-                this.entity.mover.changeVelocity({vx:velX,vy:velY});
-                Q.sendEvent("PlayerEvent",{funcs:["setXY","changeVelocity"],uniqueId:p.uniqueId,props:[{x:p.x,y:p.y},{vx:velX,vy:velY}]});
-            }
-            return [velX,velY];
+            var vel = this.entity.getVelocity({x:toX,y:toY});
+            Q.sendEvent("PlayerEvent",{funcs:["getVelocity"],uniqueId:p.uniqueId,props:[{x:toX,y:toY}]});
+            return vel;
         },
         //Determines if this object is close enough to the next point
         close:function(){
@@ -275,7 +265,6 @@ Quintus.Player=function(Q){
                 return;
             }
             var vel = this.getVelocity(p.movePath[0][0],p.movePath[0][1]);
-            p.z = p.y;
             //Not perfectly accurate, but it will work.
             p.stepCounter+=Math.abs(vel[0])+Math.abs(vel[1]);
             if(p.stepCounter>p.stepNum){p.stepCounter=0;p.steps++;};
@@ -304,6 +293,24 @@ Quintus.Player=function(Q){
         },
         
         extend:{
+            getVelocity:function(props){
+                var toX = props.x;
+                var toY = props.y;
+                var p = this.p;
+                var tx = toX-p.x;
+                var ty = toY-p.y;
+                var dist = Math.sqrt(tx*tx+ty*ty);
+                //var rad  = Math.atan2(ty,tx);
+                //var angle = rad/Math.PI*180;
+                var thrust = p.speed;
+                var velX = (tx/dist)*thrust;
+                var velY = (ty/dist)*thrust;
+                if(p.vx!==velX||p.vy!==velY){
+                    this.mover.changeVelocity({vx:velX,vy:velY});
+                }
+                p.z = p.y;
+                return [velX,velY];
+            },
             //Returns the this.p.dir based off of movement
             checkVelDir:function(vx,vy){
                 var s = this.p.speed;
