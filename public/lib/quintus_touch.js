@@ -137,7 +137,17 @@ Quintus.Touch = function(Q) {
             if(obj.p.type===Q.SPRITE_UI){
                 obj.trigger("touch");
             } else {
-                Q.sendData("touch",{x:pos.p.px,y:pos.p.py,loc:obj.p.loc});
+                var objClasses = ["Building","Pickup","SolidInteractable","Crop","Actor"];
+                var objClass;
+                objClasses.forEach(function(cl){
+                    if(obj.isA(cl)){
+                        objClass = cl;
+                    };
+                });
+                //On the server we are dealing with players
+                if(objClass==="Actor"){objClass="Player";};
+                //Send the touch data to the server
+                Q.sendData("touch",{x:pos.p.px,y:pos.p.py,loc:[Math.floor(pos.p.px/Q.tileH),Math.floor(pos.p.py/Q.tileH)],class:objClass});
             }
             break;
           }

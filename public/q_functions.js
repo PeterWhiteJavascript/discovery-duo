@@ -72,17 +72,11 @@ Quintus.QFunctions=function(Q){
     Q.getLoc=function(obj){
         return [Math.floor((obj.p.x-Math.floor((obj.p.x/Q.tileH-Math.floor(obj.p.x/Q.tileH))*Q.tileH))/Q.tileH),Math.floor((obj.p.y-Math.floor((obj.p.y/Q.tileH-Math.floor(obj.p.y/Q.tileH))*Q.tileH))/Q.tileH)];
     };
-    Q.getColLocs=function(w,h,loc,stage){
-        if(w===Q.tileH&&h===Q.tileH){return [loc];};
-        var startX = loc[0];
-        var startY = loc[1];
+    Q.setColLocs=function(offsetLocs,loc){
         var locs = [];
-        //This does get the 0,0 loc as well
-        for(var i=0;i<h/Q.tileH;i++){
-            for(var j=0;j<w/Q.tileH;j++){
-                locs.push([startX+j,startY+i]);
-            }
-        }
+        offsetLocs.forEach(function(off){
+            locs.push([off[0]+loc[0],off[1]+loc[1]]);
+        });
         return locs;
     };
     Q.setJSONData=function(data,obj){

@@ -326,7 +326,6 @@ Quintus["2D"] = function(Q) {
           col, colObj;
 
       normal.collided = false;
-
       for(var tileY = tileStartY; tileY<=tileEndY; tileY++) {
         for(var tileX = tileStartX; tileX<=tileEndX; tileX++) {
           if(this.tilePresent(tileX,tileY)) {

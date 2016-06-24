@@ -2299,9 +2299,9 @@
    <tile gid="8"/>
    <tile gid="8"/>
    <tile gid="2"/>
+   <tile gid="8"/>
    <tile gid="2"/>
-   <tile gid="2"/>
-   <tile gid="2"/>
+   <tile gid="8"/>
    <tile gid="2"/>
    <tile gid="2"/>
    <tile gid="2"/>
@@ -2333,9 +2333,9 @@
    <tile gid="8"/>
    <tile gid="8"/>
    <tile gid="8"/>
+   <tile gid="8"/>
    <tile gid="2"/>
-   <tile gid="2"/>
-   <tile gid="2"/>
+   <tile gid="8"/>
    <tile gid="2"/>
    <tile gid="2"/>
    <tile gid="2"/>
@@ -2369,6 +2369,7 @@
    <tile gid="8"/>
    <tile gid="8"/>
    <tile gid="2"/>
+   <tile gid="8"/>
    <tile gid="2"/>
    <tile gid="2"/>
    <tile gid="2"/>
@@ -2402,8 +2403,7 @@
    <tile gid="2"/>
    <tile gid="2"/>
    <tile gid="2"/>
-   <tile gid="2"/>
-   <tile gid="2"/>
+   <tile gid="8"/>
    <tile gid="2"/>
    <tile gid="2"/>
    <tile gid="2"/>
@@ -2465,7 +2465,6 @@
  <layer name="collision" width="35" height="70">
   <properties>
    <property name="collision" value="true"/>
-   <property name="type" value="SPRITE_SOLID"/>
   </properties>
   <data>
    <tile gid="121"/>
@@ -4242,10 +4241,10 @@
    <tile gid="62"/>
    <tile gid="0"/>
    <tile gid="0"/>
-   <tile gid="0"/>
-   <tile gid="0"/>
-   <tile gid="0"/>
-   <tile gid="0"/>
+   <tile gid="61"/>
+   <tile gid="62"/>
+   <tile gid="61"/>
+   <tile gid="62"/>
    <tile gid="61"/>
    <tile gid="62"/>
    <tile gid="61"/>
@@ -4277,10 +4276,10 @@
    <tile gid="82"/>
    <tile gid="0"/>
    <tile gid="0"/>
-   <tile gid="0"/>
-   <tile gid="0"/>
-   <tile gid="0"/>
-   <tile gid="0"/>
+   <tile gid="81"/>
+   <tile gid="82"/>
+   <tile gid="81"/>
+   <tile gid="82"/>
    <tile gid="81"/>
    <tile gid="82"/>
    <tile gid="81"/>

@@ -5,10 +5,11 @@ Quintus.Objects = function(Q){
         init:function(p){
             this._super(p,{
                 type:Q.SPRITE_PLAYER|Q.SPRITE_INTERACTABLE,
-                collisionMask:Q.SPRITE_SOLID,
+                collisionMask:Q.SPRITE_INTERACTABLE|Q.SPRITE_DEFAULT,
                 dir:"down",
                 sprite:"player"
             });
+            
             this.add("2d, animation, animations, mover, solidInteraction");
             var cx = this.p.w/2;
             var cy = this.p.h/2+this.p.h/4+this.p.h/8;
@@ -19,10 +20,10 @@ Quintus.Objects = function(Q){
             this.p.y = this.p.loc[1]*Q.tileH+this.p.h/4;
             
             this.p.z = this.p.y;
-            var boxW=32/3;
-            var boxH=32/6;
-            var origX = cx-this.p.w;
-            var origY = cy-this.p.h;
+            var boxW=32/3-1;
+            var boxH=32/6-1;
+            var origX = cx-this.p.w+1;
+            var origY = cy-this.p.h+1;
             this.p.points = [
                 [origX+boxW*1,origY+boxH*0],
                 [origX+boxW*2,origY+boxH*0],
@@ -49,7 +50,7 @@ Quintus.Objects = function(Q){
             Q.setCenter(this);
             Q.getLoc(this);
             this.add("2d");
-            this.p.colLocs = Q.getColLocs(this.p.w,this.p.h,this.p.loc);
+            this.p.colLocs = Q.setColLocs(this.p.colLocs,this.p.loc);
         },
         touched:function(touch,player){
             var touchLoc = Q.getTouchLoc(touch);
@@ -67,7 +68,7 @@ Quintus.Objects = function(Q){
                     } 
                     //If the player is not near the door, move him to the entrance
                     else {
-                        player.moveTo([door[2]+this.p.loc[0],door[3]+this.p.loc[1]]);
+                        player.moveTo({x:(door[2]+this.p.loc[0])*Q.tileH+Q.tileH/2,y:(door[3]+this.p.loc[1])*Q.tileH+Q.tileH/2});
                     }
                     return;
                 }
@@ -90,7 +91,7 @@ Quintus.Objects = function(Q){
             var items = Q.state.get("Jitems");
             var keys = Object.keys(items);
             this._super(p,items[keys[this.p.groupId]][this.p.itemId]);
-            this.p.type = Q.SPRITE_PICKUP|Q.SPRITE_INTERACTABLE;
+            this.p.type = Q.SPRITE_PICKUP|Q.SPRITE_NONE;
             this.p.w = Q.tileH;
             this.p.h = Q.tileH;
             Q.setXY(this);
@@ -115,8 +116,11 @@ Quintus.Objects = function(Q){
             this.p.type = Q.SPRITE_SOLID|Q.SPRITE_INTERACTABLE;
             Q.setXY(this);
             Q.setCenter(this);
+            if(this.p.zMod){
+                this.p.z+=this.p.zMod;
+            }
             this.add("2d");
-            this.p.colLocs = Q.getColLocs(this.p.w,this.p.h,this.p.loc);
+            this.p.colLocs = Q.setColLocs(this.p.colLocs,this.p.loc);
         },
         touched:function(touch,player){
             player.moveNear(touch,this,true);
@@ -161,7 +165,7 @@ Quintus.Objects = function(Q){
             Q.setCenter(this);
             Q.getLoc(this);
             this.add("2d");
-            this.p.colLocs = Q.getColLocs(this.p.w,this.p.h,this.p.loc);
+            this.p.colLocs = [[0,0]];//Q.getColLocs(this.p.w,this.p.h,this.p.loc);
         },
         touched:function(touch,player){
             player.moveNear(touch,this,true);

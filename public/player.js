@@ -102,8 +102,10 @@ Quintus.Player=function(Q){
             },
             playWalk:function(dir){
                 if(!this.play){return;}
-                this.p.dir = this.checkPlayDir(dir);
-                this.play("walking"+this.p.dir);
+                if(this.p.animation!=="walking"+dir){
+                    this.p.dir = this.checkPlayDir(dir);
+                    this.play("walking"+this.p.dir);
+                }
             },
         }
     });
@@ -114,6 +116,9 @@ Quintus.Player=function(Q){
             this.entity.on("atDest",this,"atDest");
             this.entity.p.stepNum = Q.tileH;
             this.entity.p.stepCounter = 0;
+            this.entity.p.lastX = this.entity.p.x;
+            this.entity.p.lastY = this.entity.p.y;
+            this.entity.p.initialPointHit = 1;
         },
         getPath:function(loc,toLoc,near){
             //Set up a graph for this movement
@@ -127,7 +132,7 @@ Quintus.Player=function(Q){
                 dontCrossCorners:true
             });
             var path = finder.findPath(loc[0],loc[1],toLoc[0],toLoc[1],grid);
-            return path//PF.Util.compressPath(path);
+            return path;//PF.Util.compressPath(path);
         },
         getWalkable:function(x,y){
             var p = this.entity.p;
@@ -188,7 +193,10 @@ Quintus.Player=function(Q){
             this.stopMovement();
             this.entity.off("hit",this,"stopMovement");
             this.entity.off("step",this,"step");
-            Q.sendEvent("PlayerEvent",{funcs:["stopMove"],uniqueId:p.uniqueId,props:[]});
+            //If there's no move path, stop the animation on the client
+            if(!p.movePath[0]){
+                Q.sendEvent("PlayerEvent",{funcs:["stopMove"],uniqueId:p.uniqueId,props:[]});
+            }
         },
         stopMovement:function(){
             var p =this.entity.p;
@@ -211,6 +219,7 @@ Quintus.Player=function(Q){
         //Run when the object gets to a point in the p.movePath
         atPoint:function(){
             var p = this.entity.p;
+            p.initialPointHit = 1;
             p.movePath.splice(0,1);
             if(p.movePath.length===0){
                 this.atDest();
@@ -259,17 +268,29 @@ Quintus.Player=function(Q){
             this.entity.trigger("startMove");
         },
         step:function(dt){
+            //The next position is (x) p.x+(vel[0]*dt)
+            //This will be used in client prediction to look into the past to see where the player was at by keeping track of past delta times along with the real time
             var p = this.entity.p;
             if(this.close()){
                 this.atPoint();
                 return;
             }
             var vel = this.getVelocity(p.movePath[0][0],p.movePath[0][1]);
+            if(p.initialPointHit>0){p.initialPointHit=0;} 
+            //Don't run this the first time
+            //This catches if the x or y value is not what it should be given the velocity.
+            //This means that the player has hit a wall.
+            else if((p.lastX+(vel[0]*dt)).toFixed(5)!==(p.x).toFixed(5)&&(p.lastY+(vel[1]*dt)).toFixed(5)!==(p.y).toFixed(5)){
+                p.movePath=[];
+                this.stopMove();
+            }
             //Not perfectly accurate, but it will work.
             p.stepCounter+=Math.abs(vel[0])+Math.abs(vel[1]);
             if(p.stepCounter>p.stepNum){p.stepCounter=0;p.steps++;};
             //console.log(p.steps)
-            
+            //Need to be able to detect if the player is running against a wall and not moving
+            p.lastX = p.x;
+            p.lastY = p.y;
         }
     });
     Q.component("mover",{
@@ -286,6 +307,7 @@ Quintus.Player=function(Q){
             var p =this.entity.p;
             p.vx=0;
             p.vy=0;
+            this.entity.trigger("playStand",p.dir);
         },
         changeVelocity:function(props){
             this.entity.p.vx = props.vx;
@@ -306,6 +328,7 @@ Quintus.Player=function(Q){
                 var velX = (tx/dist)*thrust;
                 var velY = (ty/dist)*thrust;
                 if(p.vx!==velX||p.vy!==velY){
+                    this.playWalk(this.checkVelDir(velX,velY));
                     this.mover.changeVelocity({vx:velX,vy:velY});
                 }
                 p.z = p.y;
@@ -508,7 +531,7 @@ Quintus.Player=function(Q){
                 sprite:"player",
                 sheet:"player_1",
                 type:Q.SPRITE_PLAYER|Q.SPRITE_INTERACTABLE,
-                collisionMask:Q.SPRITE_SOLID,
+                collisionMask:Q.SPRITE_INTERACTABLE|Q.SPRITE_DEFAULT,
                 w:32,
                 h:64,
                 dir:"down"
@@ -524,10 +547,11 @@ Quintus.Player=function(Q){
             this.p.x = this.p.loc[0]*Q.tileH+this.p.w/2;
             this.p.y = this.p.loc[1]*Q.tileH+this.p.h/4;
             this.p.z = this.p.y;
-            var boxW=32/3;
-            var boxH=32/6;
-            var origX = cx-this.p.w;
-            var origY = cy-this.p.h;
+            var boxW=32/3-1;
+            var boxH=32/6-1;
+            var origX = cx-this.p.w+1;
+            var origY = cy-this.p.h+1;
+            //Need to offset the points to be the bottom part of the sprite
             this.p.points = [
                 [origX+boxW*1,origY+boxH*0],
                 [origX+boxW*2,origY+boxH*0],
@@ -538,15 +562,85 @@ Quintus.Player=function(Q){
                 [origX+boxW*0,origY+boxH*2],
                 [origX+boxW*0,origY+boxH*1]
             ];
+            
             this.getLoc();
             this.trigger("playStand",this.p.dir);
         },
         touched:function(){
             
         },
+        //Not in use, but it has to do with stopping the player from moving at an object at the certain direction
+        getEndOffset:function(path){
+            //The second last path point
+            var p1 = path[path.length-2];
+            //The last path point
+            var p2 = path[path.length-1];
+            if(!p1){console.log("No P1");return [0,0];};
+            var offset = [0,0];
+            if(p1[0]-p2[0]>0){
+                if(p1[1]-p2[1]<0){
+                    offset=[this.p.w/2,-this.p.h/2];
+                } else if(p1[1]-p2[1]===0){
+                    offset=[this.p.w/2,0];
+                } else if(p1[1]-p2[1]>0){
+                    offset=[this.p.w/2,this.p.h/2];
+                }
+            } else if(p1[0]-p2[0]<0){
+                if(p1[1]-p2[1]<0){
+                    offset=[-this.p.w/2,-this.p.h/2];
+                } else if(p1[1]-p2[1]===0){
+                    offset=[-this.p.w/2,0];
+                } else if(p1[1]-p2[1]>0){
+                    offset=[-this.p.w/2,this.p.h/2];
+                }
+            } else if(p1[0]-p2[1]===0){
+                if(p1[1]-p2[1]<0){
+                    offset=[0,-this.p.h/2];
+                } else if(p1[1]-p2[1]===0){
+                    console.log("This should not happen as this means the player is on the end spot");
+                    //offset=[Q.tileH/2,0];
+                } else if(p1[1]-p2[1]>0){
+                    offset=[0,this.p.h/2];
+                }
+            }
+            return [offset[0],offset[1]];
+        },
+        getStartRemainder:function(){
+            var x = this.p.x;
+            var y = this.p.y;
+            var remX = Math.floor((x/Q.tileH-Math.floor(x/Q.tileH))*Q.tileH)-Q.tileH;
+            var remY = Math.floor((y/Q.tileH-Math.floor(y/Q.tileH))*Q.tileH)-Q.tileH;
+            return [remX,remY];
+        },
+        getEndRemainder:function(path,touch){
+            var x = path[path.length-1][0];
+            var y = path[path.length-1][1];
+            var remX = Math.floor((touch.x/Q.tileH-Math.floor(x))*Q.tileH)-Q.tileH;
+            var remY = Math.floor((touch.y/Q.tileH-Math.floor(y))*Q.tileH)-Q.tileH;
+            return [remX,remY];
+        },
         //Moves the player to the target location
-        moveTo:function(toLoc){
+        moveTo:function(touch){
+            var toLoc = Q.getTouchLoc(touch);
             var path = this.pathLogic.getPath(this.p.loc,toLoc);
+            path = PF.Util.compressPath(path);
+            if(path.length===1){
+                //Get the remainder of the last movement
+                var rem = this.getEndRemainder(path,touch);
+                //Modify the final point in the path to be the touch location
+                path[1]=[path[0][0]+((rem[0]+Q.tileH/2)/Q.tileH),path[0][1]+((rem[1]+Q.tileH/2)/Q.tileH)];
+            } else {
+                var rem = this.getStartRemainder(path);
+                //Modify the first two points
+                path[0]=[(this.p.x+rem[0])/Q.tileH,(this.p.y+rem[1])/Q.tileH];
+                //Get the remainder of the last movement
+                var rem = this.getEndRemainder(path,touch);
+                //Modify the final point in the path to be the touch location
+                path[path.length-1]=[path[path.length-1][0]+((rem[0]+Q.tileH/2)/Q.tileH),path[path.length-1][1]+((rem[1]+Q.tileH/2)/Q.tileH)];
+                //console.log(rem)
+            }
+            path = PF.Util.compressPath(path);
+            //console.log(path)
             this.pathLogic.moveAlong({path:path,x:this.p.x,y:this.p.y});
             //Q.sendEvent("PlayerEvent",{funcs:["moveAlong"],uniqueId:this.p.uniqueId,props:[{path:path,x:this.p.x,y:this.p.y}]});
         },
@@ -568,8 +662,10 @@ Quintus.Player=function(Q){
                 var path = this.pathLogic.getPath(this.p.loc,toLoc,near);
                 var close = PF.Util.expandPath(path);
                 close.pop();
-                PF.Util.compressPath(close);
-                this.pathLogic.moveAlong({path:close,x:this.p.x,y:this.p.y});
+                if(close.length<2){return;};
+                this.moveTo({x:close[close.length-1][0]*Q.tileH+Q.tileH/2,y:close[close.length-1][1]*Q.tileH+Q.tileH/2});
+                //PF.Util.compressPath(close);
+                //this.pathLogic.moveAlong({path:close,x:this.p.x,y:this.p.y});
             }
         },
         besideTargetLoc:function(loc,toLoc){
@@ -630,8 +726,17 @@ Quintus.Player=function(Q){
             //Make sure this player's loc is set properly
             this.getLoc();
             //If we're touching an object
-            if(touch.loc){
-                var obj = stage.locate(touch['x'],touch['y'],Q.SPRITE_INTERACTABLE);
+            if(touch.loc&&touch.class){
+                var objs = stage.lists[touch.class];
+                var obj = objs.filter(function(ob){
+                    if(ob.p.colLocs){
+                        return ob.p.colLocs.filter(function(loc){
+                            return loc[0]===touch.loc[0]&&loc[1]===touch.loc[1];
+                        })[0];
+                    } else {
+                        return ob.p.loc[0]===touch.loc[0]&&ob.p.loc[1]===touch.loc[1];
+                    }
+                })[0];
                 if(obj){
                     obj.touched(touch,this);
                 }
@@ -711,7 +816,7 @@ Quintus.Player=function(Q){
                                             return;
                                         }
                                     } else {
-                                        this.moveTo(touchLoc);
+                                        this.moveTo(touch);
                                         return;
                                     }
                                 }
@@ -727,7 +832,7 @@ Quintus.Player=function(Q){
                                         return;
                                     } 
                                 } else {
-                                    this.moveTo(touchLoc);
+                                    this.moveTo(touch);
                                     return;
                                 }
                             }
@@ -744,7 +849,7 @@ Quintus.Player=function(Q){
                 }
                 //If we're just moving to a place
                 else {
-                    this.moveTo(touchLoc);
+                    this.moveTo(touch);
                     return;
                 }
             }
